@@ -6,6 +6,7 @@ COUNTERS = {
     "arithmetic": 0
 }
 
+# ---- Counter Functions ----
 def count_assign(value):
     COUNTERS["assignments"] += 1
     return value
@@ -29,6 +30,7 @@ def count_arith(a, op, b):
 import ast
 import operator
 
+# Creating a subclass of nodetransformer
 class Instrumentor(ast.NodeTransformer):
 
     def visit_Assign(self, node):
@@ -123,6 +125,7 @@ ast.fix_missing_locations(instrumented_tree)
 
 code = compile(instrumented_tree, filename="<ast>", mode="exec")
 
+# Used as id's to tie the functions to the Instrumentor class's methods
 exec_globals = {
     "COUNTERS": COUNTERS,
     "count_assign": count_assign,
@@ -133,6 +136,7 @@ exec_globals = {
     "operator": operator
 }
 
+# Runs the compiled code and count the operations carried out during its runtime
 exec(code, exec_globals)
 
 arr = [5, 1, 4, 2, 8]
