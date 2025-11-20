@@ -1,3 +1,6 @@
+import ast
+import operator
+
 COUNTERS = {
     "arithmetic" : 0
 }
@@ -17,9 +20,6 @@ def count_arith(a, op, b):
     """
     COUNTERS["arithmetic"] += 1
     return op(a, b)
-
-import ast
-import operator
 
 class Arithmetic_Visiter(ast.NodeTransformer):
     """
@@ -48,7 +48,7 @@ class Arithmetic_Visiter(ast.NodeTransformer):
                     func=ast.Name(id="count_arith", ctx=ast.Load()),
                     args=[
                         node.left,
-                        ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()),
+                        ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()), # This line maps to op in the count_arith func
                         node.right
                     ],
                     keywords=[]
