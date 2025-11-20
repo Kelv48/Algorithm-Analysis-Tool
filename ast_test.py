@@ -139,10 +139,11 @@ exec_globals = {
 # Runs the compiled code and count the operations carried out during its runtime
 exec(code, exec_globals)
 
-import random
-n = 10
-arr = [random.randint(1, 100) for _ in range(n)]
-print(arr)
+# import random
+# n = 10
+# arr = [random.randint(1, 100) for _ in range(n)]
+arr = [2, 5, 3, 1, 4]
+# print(arr)
 exec_globals["bubble_sort"](arr)
 
 print(COUNTERS)
