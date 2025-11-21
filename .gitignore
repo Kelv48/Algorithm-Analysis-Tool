@@ -1,1 +1,16 @@
 *.python-version
+
+# Python ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

@@ -56,32 +56,32 @@ class Arithmetic_Visiter(ast.NodeTransformer):
         return node
 
 # Where we read in the python program we want to test on
-with open("bubble_sort.py", "r") as f:
-    tree = ast.parse(f.read())
+# with open("bubble_sort.py", "r") as f:
+#     tree = ast.parse(f.read())
 
-for child in ast.walk(tree):
-    for sub in ast.iter_child_nodes(child):
-        sub.parent = child # Keep track of the parent nodes for use by the methods
+# for child in ast.walk(tree):
+#     for sub in ast.iter_child_nodes(child):
+#         sub.parent = child # Keep track of the parent nodes for use by the methods
 
-visited_tree = Arithmetic_Visiter().visit(tree)
-ast.fix_missing_locations(visited_tree)
+# visited_tree = Arithmetic_Visiter().visit(tree)
+# ast.fix_missing_locations(visited_tree)
 
-code = compile(visited_tree, filename="<ast>", mode="exec")
+# code = compile(visited_tree, filename="<ast>", mode="exec")
 
-exec_globals = {
-    "COUNTERS": COUNTERS,
-    "count_arith": count_arith,
-    "operator": operator
-}
+# exec_globals = {
+#     "COUNTERS": COUNTERS,
+#     "count_arith": count_arith,
+#     "operator": operator
+# }
 
-exec(code, exec_globals)
+# exec(code, exec_globals)
 
-# import random
-# n = 10
-# arr = [random.randint(1, 100) for _ in range(n)]
-arr = [2, 5, 3, 1, 4]
-# print(arr)
-exec_globals["bubble_sort"](arr) # Executing bubble sort with the input of arr
+# # import random
+# # n = 10
+# # arr = [random.randint(1, 100) for _ in range(n)]
+# arr = [2, 5, 3, 1, 4]
+# # print(arr)
+# exec_globals["bubble_sort"](arr) # Executing bubble sort with the input of arr
 
-# Output of the counters at the end of the program
-print(COUNTERS)
+# # Output of the counters at the end of the program
+# print(COUNTERS)
