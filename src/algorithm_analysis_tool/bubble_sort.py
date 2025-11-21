@@ -11,8 +11,3 @@ def bubble_sort(arr):
         if not swapped:
             break
     return arr
-
-# n = 50
-# arr = [random.randint(1, 100) for _ in range(n)]
-
-# sorted_arr = bubble_sort(arr)

@@ -1,3 +1,5 @@
+# Test code for ast modifications
+
 COUNTERS = {
     "assignments": 0,
     "indexing": 0,

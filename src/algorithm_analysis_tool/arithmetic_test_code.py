@@ -55,6 +55,10 @@ class Arithmetic_Visiter(ast.NodeTransformer):
                 )
         return node
 
+
+# Commented out the code below as its now implemented in cli.py
+# This code is how the class is ran in practice
+
 # Where we read in the python program we want to test on
 # with open("bubble_sort.py", "r") as f:
 #     tree = ast.parse(f.read())
