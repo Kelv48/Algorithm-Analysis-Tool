@@ -7,6 +7,9 @@ from .arithmetic_test_code import Arithmetic_Visiter, count_arith, COUNTERS
 
 
 def main():
+    # Cli entry point to the project
+    # To-do create a helper function that can automatically run the cli and return the results
+    # Could be an api endpoint or a function that can be called from another module
     import argparse
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
