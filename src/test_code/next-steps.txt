@@ -1,3 +1,0 @@
-1. Look into if we can execute a tree structure without recompiling the python (hello world)
-2. See if we can then execute a visited tree and execute it without making any changes
-3. If both of these work see how to alter the arithmetic visiter to execute the code without being recompiled
