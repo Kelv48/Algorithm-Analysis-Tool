@@ -1,23 +1,27 @@
 import ast
-import operator
 
-class Instrumentor(ast.NodeTransformer):
-    def visit_Call(self, node):
-        node = self.generic_visit(node)
-        return ast.Call(
-            func=ast.Name(id="count_call", ctx=ast.Load()),
-            args=[node.func] + node.args,
-            keywords=[]
-        )
+# A interpreter that can evaluate an AST directly
+# Requires implementing evaluation logic for different AST node types
+# Is incredibly limited compared to using compile and eval
+def eval_ast(node):
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.BinOp):
+        left = eval_ast(node.left)
+        right = eval_ast(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+    raise NotImplementedError
 
-with open("hello_world.py", "r") as f:
-    tree = ast.parse(f.read())
+tree = ast.parse("1 + 2", mode="eval")
+print(eval_ast(tree.body))  # 3
 
-for child in ast.walk(tree):
-    for sub in ast.iter_child_nodes(child):
-        sub.parent = child
 
-instrumented_tree = Instrumentor().visit(tree)
-ast.fix_missing_locations(instrumented_tree)
+# Using compile and eval to execute an AST
+tree = ast.parse("1 + 2", mode="eval")
 
-code = compile(instrumented_tree, filename="<ast>", mode="exec")
+code_obj = compile(tree, filename="<ast>", mode="eval")
+
+result = eval(code_obj)
+
+print(result)
