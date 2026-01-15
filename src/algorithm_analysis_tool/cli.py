@@ -1,4 +1,4 @@
-import ast, os
+import ast, os, sys
 from pathlib import Path
 import operator
 
@@ -17,6 +17,9 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()
+    
+    filename = sys.argv[1]
+    name = os.path.basename(filename)
 
     with open(args.file, "r") as f:
         tree = ast.parse(f.read())
@@ -42,8 +45,9 @@ def main():
     arr = [2, 5, 3, 1, 4]
 
     exec(code, exec_globals)
-
-    exec_globals["bubble_sort"](arr)
+    wrapped = f"{name}"
+    wrapped = wrapped.split(".")[0]
+    exec_globals[wrapped](arr)
 
     # print("Arithmetic operations counted:", COUNTERS["arithmetic"])
     print("Full COUNTERS:", COUNTERS)

@@ -1,5 +1,4 @@
 import ast
-import operator
 
 COUNTERS = {
     "assignments": 0,
@@ -26,23 +25,75 @@ def count_arith(a, op, b):
     return op(a, b)
 
 def count_assign(value):
+    """
+        Counts the assignment operations being performed \n.
+        Increments the global assignment counter by 1.
+
+        Parameters:
+            value: The value being assigned.
+
+        Returns:
+            The value being assigned.
+    """
     COUNTERS["assignments"] += 1
     return value
 
 def count_index(obj, key):
+    """
+        Counts the indexing operations being performed \n.
+        Increments the global indexing counter by 1.
+
+        Parameters:
+            obj: The object being indexed.
+            key: The index/key being accessed.
+
+        Returns:
+            The value at the specified index/key.
+    """
     COUNTERS["indexing"] += 1
     return obj[key]
 
 def count_call(fn, *args, **kwargs):
+    """
+        Counts the function call operations being performed \n.
+        Increments the global function call counter by 1.
+
+        Parameters:
+            fn: The function being called.
+            *args: Positional arguments for the function.
+            **kwargs: Keyword arguments for the function.
+
+        Returns:
+            The result of the function call.
+    """
     COUNTERS["function_calls"] += 1
     return fn(*args, **kwargs)
 
 def count_compare(a, op, b):
+    """
+        Counts the comparison operations being performed \n.
+        Increments the global comparison counter by 1.
+
+        Parameters:
+            a: The left-hand side of the comparison.
+            op: The comparison operation (e.g., lt, gt).
+            b: The right-hand side of the comparison.
+
+        Returns:
+            The result of the comparison.
+    """
     COUNTERS["comparisons"] += 1
     return op(a, b)
 
 class AST_Visitor(ast.NodeTransformer):
+    
+    """
+    NodeTransformer will auto call any visit_* methods we create. \n
+    When we call visit(node) the transformer checks the node type and looks for a matching method
+    """    
     def visit_Assign(self, node):
+        """
+            Visit assignment nodes to wrap the assigned value with a call to count_assign."""
         node = self.generic_visit(node)
         node.value = ast.Call(
             func=ast.Name(id="count_assign", ctx=ast.Load()),
@@ -52,6 +103,9 @@ class AST_Visitor(ast.NodeTransformer):
         return node
 
     def visit_Subscript(self, node):
+        """
+            Visits subscript (indexing) nodes to wrap them with a call to count_index.
+        """
         node = self.generic_visit(node)
 
         if isinstance(node.ctx, ast.Store):
@@ -65,6 +119,9 @@ class AST_Visitor(ast.NodeTransformer):
         )
 
     def visit_Call(self, node):
+        """
+            Visits function call nodes to wrap them with a call to count_call.
+        """
         node = self.generic_visit(node)
         return ast.Call(
             func=ast.Name(id="count_call", ctx=ast.Load()),
@@ -73,6 +130,9 @@ class AST_Visitor(ast.NodeTransformer):
         )
 
     def visit_Compare(self, node):
+        """
+            Visits comparison nodes to wrap them with a call to count_compare.
+        """
         node = self.generic_visit(node)
 
         op_map = {
@@ -94,16 +154,11 @@ class AST_Visitor(ast.NodeTransformer):
             ],
             keywords=[]
         )
-    """
-        This is a subclass build off of the NodeTransformer Class build into ast. \n
-        NodeTransformer visits and allows the modification of nodes. \n
-        We are changing its visit method for BinOps to instead of just visiting and executing them \n
-        to also count how many we visit
-    """
+
+
     def visit_BinOp(self, node):
         """
-            NodeTransformer will auto call any visit_* methods we create. \n
-            When we call visit(node) the transformer checks the node type and looks for a matching method
+            Visits binary operation nodes to wrap them with a call to count_arith.
         """
         node = self.generic_visit(node)
 
