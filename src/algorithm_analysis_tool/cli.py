@@ -1,4 +1,4 @@
-import ast, os, sys
+import ast, os, sys, argparse
 import operator
 
 from .ast_visitor import AST_Visitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS
@@ -11,7 +11,6 @@ def main():
     # This will allow other modules or potential API endpoints to reuse the analysis logic without invoking the CLI.
     # Could also allow toggle options for different types of analysis
     # Using ast transformation we could allow different languages to be analyzed by converting them to python ast first
-    import argparse
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()

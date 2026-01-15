@@ -85,7 +85,7 @@ def count_compare(a, op, b):
     COUNTERS["comparisons"] += 1
     return op(a, b)
 
-class AST_Visitor(ast.NodeTransformer):
+class ASTVisitor(ast.NodeTransformer):
     
     """
     NodeTransformer will auto call any visit_* methods we create. \n
