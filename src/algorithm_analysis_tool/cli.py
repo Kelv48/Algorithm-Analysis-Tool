@@ -1,8 +1,6 @@
 import ast, os, sys
-from pathlib import Path
 import operator
 
-print("Current Working Directory:", os.getcwd())
 from .ast_visitor import AST_Visitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS
 
 def main():
@@ -49,8 +47,9 @@ def main():
     wrapped = wrapped.split(".")[0]
     exec_globals[wrapped](arr)
 
-    # print("Arithmetic operations counted:", COUNTERS["arithmetic"])
-    print("Full COUNTERS:", COUNTERS)
+    print("Analysis Results:")
+    for key, value in COUNTERS.items():
+        print(f"{key}: {value}")
 
 
 if __name__ == "__main__":
