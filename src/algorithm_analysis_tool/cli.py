@@ -3,8 +3,7 @@ from pathlib import Path
 import operator
 
 print("Current Working Directory:", os.getcwd())
-from .arithmetic_test_code import Arithmetic_Visiter, count_arith, COUNTERS
-
+from .ast_visitor import AST_Visitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS
 
 def main():
     # CLI entry point to the project
@@ -26,7 +25,7 @@ def main():
         for sub in ast.iter_child_nodes(child):
             sub.parent = child  # Keep track of the parent nodes for use by the methods
 
-    visited_tree = Arithmetic_Visiter().visit(tree)
+    visited_tree = AST_Visitor().visit(tree)
     ast.fix_missing_locations(visited_tree)
 
     code = compile(visited_tree, filename="<ast>", mode="exec")
@@ -34,6 +33,10 @@ def main():
     exec_globals = {
         "COUNTERS": COUNTERS,
         "count_arith": count_arith,
+        "count_assign": count_assign,
+        "count_call": count_call,
+        "count_compare": count_compare,
+        "count_index": count_index,
         "operator": operator
     }
     arr = [2, 5, 3, 1, 4]
@@ -42,7 +45,8 @@ def main():
 
     exec_globals["bubble_sort"](arr)
 
-    print("Arithmetic operations counted:", COUNTERS["arithmetic"])
+    # print("Arithmetic operations counted:", COUNTERS["arithmetic"])
+    print("Full COUNTERS:", COUNTERS)
 
 
 if __name__ == "__main__":

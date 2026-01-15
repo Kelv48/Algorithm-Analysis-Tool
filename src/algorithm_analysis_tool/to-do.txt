@@ -7,3 +7,6 @@
     3.3 Documentation that explains the use and purpose of each function/method
 4. Look into entrypoints (cli, api-based etc..)
 5. Figure out how project will be served
+    5.1 Look into linking Jenkins vm into project for auto updates
+    5.2 Host the project on a vm
+    5.3 Look into DNS resolution
