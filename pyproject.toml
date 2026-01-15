@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Algorithm-Analysis-Tool"
-version = "0.1.2"
+version = "2025.1.2"
 description = "A command-line tool for analyzing algorithms."
 authors = [
 { name="Kelvin", email="kelvinosagie05@gmail.com" }
