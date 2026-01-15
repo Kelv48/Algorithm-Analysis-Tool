@@ -43,9 +43,9 @@ def main():
     arr = [2, 5, 3, 1, 4]
 
     exec(code, exec_globals)
-    wrapped = f"{name}"
-    wrapped = wrapped.split(".")[0]
-    exec_globals[wrapped](arr)
+    function_name = f"{name}"
+    function_name = function_name.split(".")[0]
+    exec_globals[function_name](arr)
 
     print("Analysis Results:")
     for key, value in COUNTERS.items():
