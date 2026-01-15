@@ -143,7 +143,10 @@ class AST_Visitor(ast.NodeTransformer):
             ast.LtE: "le",
             ast.GtE: "ge",
         }
-        op = op_map[type(node.ops[0])]
+        op = op_map.get(type(node.ops[0]))
+        if not op:
+            # Unsupported comparison operator; leave node unchanged.
+            return node
 
         return ast.Call(
             func=ast.Name(id="count_compare", ctx=ast.Load()),
