@@ -145,12 +145,11 @@ class ASTVisitor(ast.NodeTransformer):
             ast.NotEq: "ne",
             ast.LtE: "le",
             ast.GtE: "ge",
+            ast.Is: "is",
+            ast.IsNot: "is_not",
+            ast.In: "in",
+            ast.NotIn: "not_in"
         }
-        # Doesn't support is, is not, in, not in comparisons yet 
-        # class ast.Is¶
-        # class ast.IsNot
-        # class ast.In
-        # class ast.NotIn
 
         op = op_map.get(type(node.ops[0]))
         if not op:
@@ -179,23 +178,17 @@ class ASTVisitor(ast.NodeTransformer):
                 ast.Add: "add",
                 ast.Sub: "sub",
                 ast.Mult: "mul",
-                ast.Div: "truediv"
-            } # Note: Code doesn't currently cover %, ** or // operations
-            
-            # All the ast binary operation classes:
-            # class ast.Add
-            # class ast.Sub
-            # class ast.Mult
-            # class ast.Div
-            # class ast.FloorDiv
-            # class ast.Mod
-            # class ast.Pow
-            # class ast.LShift
-            # class ast.RShift
-            # class ast.BitOr
-            # class ast.BitXor
-            # class ast.BitAnd
-            # class ast.MatMult¶
+                ast.Div: "truediv",
+                ast.FloorDiv: "floordiv",
+                ast.Mod: "mod",
+                ast.Pow: "pow",
+                ast.LShift: "lshift",
+                ast.RShift: "rshift",
+                ast.BitOr: "or",
+                ast.BitXor: "xor",
+                ast.BitAnd: "and_",
+                ast.MatMult: "matmul"
+            }
 
             op = op_map.get(type(node.op))
             if op:

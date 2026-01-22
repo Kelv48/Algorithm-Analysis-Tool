@@ -1,7 +1,7 @@
 import ast, os, sys, argparse
 import operator
 
-from .ast_visitor import AST_Visitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS
+from .ast_visitor import ASTVisitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS
 
 def main():
     # CLI entry point to the project
@@ -25,7 +25,7 @@ def main():
         for sub in ast.iter_child_nodes(child):
             sub.parent = child  # Keep track of the parent nodes for use by the methods
 
-    visited_tree = AST_Visitor().visit(tree)
+    visited_tree = ASTVisitor().visit(tree)
     ast.fix_missing_locations(visited_tree)
 
     code = compile(visited_tree, filename="<ast>", mode="exec")
