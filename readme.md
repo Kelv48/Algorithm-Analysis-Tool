@@ -1,43 +1,570 @@
-# 4th Year Project
+# 4th Year Project | Algorithm Analysis Tool
 
-## Docs for  Arithmetic Test
+This module uses Python’s `ast` library to instrument source code at runtime and count specific program operations, including:
 
-This test code uses Python's `ast` (Abstract Syntax Tree) module to **instrument** another Python file and count how many **arithmetic operations** it performs during execution.  
+- Assignments  
+- Indexing operations  
+- Function calls  
+- Comparisons  
+- Arithmetic operations  
 
-It does this by:
-
-1. Parsing a target Python file (e.g., `bubble_sort.py`).
-2. Modifying its AST to wrap arithmetic expressions (`+`, `-`, `*`, `/`) in a custom counter function.
-3. Executing the transformed program.
-4. Reporting the number of arithmetic operations performed.
-
----
-
-## How It Works
-
-### 1. Arithmetic Counter
-
-The function `count_arith(a, op, b)`:
-
-- Increments a global counter `COUNTERS["arithmetic"]`.
-- Executes the given operation using `operator` (e.g., `operator.add`).
-- Returns the computed result.
-
-This function is inserted everywhere an arithmetic operation appears.
-This is done automatically by the transformer as any visit_* method is used where a matching node is found.
+The system works by transforming the program’s Abstract Syntax Tree (AST) and injecting counter functions before execution.
 
 ---
 
-### 2. AST Transformation
+## Dependencies
 
-The class `ASTVisitor` extends `ast.NodeTransformer` and overrides `visit_BinOp` to replace:
+This module relies on Python’s built-in `ast` module:
+
+```python
+import ast
+```
+
+The `ast.NodeTransformer` class is used to traverse and modify the syntax tree.
+
+---
+
+## Global Counters
+
+All operation counts are stored in a shared dictionary:
+
+```python
+COUNTERS = {
+    "assignments": 0,
+    "indexing": 0,
+    "function_calls": 0,
+    "comparisons": 0,
+    "arithmetic": 0
+}
+```
+
+Each key represents a category of tracked operations, while the corresponding value stores the cumulative count.
+
+---
+
+# Runtime Counter Functions
+
+These functions are injected into the transformed program and executed during runtime. Each function increments its respective counter and returns the original operation result.
+
+---
+
+## Arithmetic Counter
+
+### `count_arith(a, op, b)`
+
+Tracks binary arithmetic operations.
+
+### Purpose
+
+- Increments the arithmetic operation counter  
+- Applies the requested operator to the provided operands  
+- Returns the computed result  
+
+### Implementation
+
+```python
+def count_arith(a, op, b):
+    COUNTERS["arithmetic"] += 1
+    return op(a, b)
+```
+
+---
+
+## Assignment Counter
+
+### `count_assign(value)`
+
+Tracks variable assignments.
+
+### Purpose
+
+- Increments the assignment counter  
+- Returns the assigned value unchanged  
+
+### Implementation
+
+```python
+def count_assign(value):
+    COUNTERS["assignments"] += 1
+    return value
+```
+
+---
+
+## Indexing Counter
+
+### `count_index(obj, key)`
+
+Tracks indexing operations such as list and dictionary access.
+
+### Purpose
+
+- Increments the indexing counter  
+- Returns the accessed element  
+
+### Implementation
+
+```python
+def count_index(obj, key):
+    COUNTERS["indexing"] += 1
+    return obj[key]
+```
+
+---
+
+## Function Call Counter
+
+### `count_call(fn, *args, **kwargs)`
+
+Tracks function invocations.
+
+### Purpose
+
+- Increments the function call counter  
+- Executes the original function call  
+- Returns the function result  
+
+### Implementation
+
+```python
+def count_call(fn, *args, **kwargs):
+    COUNTERS["function_calls"] += 1
+    return fn(*args, **kwargs)
+```
+
+---
+
+## Comparison Counter
+
+### `count_compare(a, op, b)`
+
+Tracks comparison operations.
+
+### Purpose
+
+- Increments the comparison counter  
+- Applies the comparison operator  
+- Returns the boolean result  
+
+### Implementation
+
+```python
+def count_compare(a, op, b):
+    COUNTERS["comparisons"] += 1
+    return op(a, b)
+```
+
+---
+
+# AST Transformer
+
+The `ASTVisitor` class extends `ast.NodeTransformer` and overrides specific visitor methods to replace syntax nodes with instrumented equivalents.
+
+Python automatically calls `visit_*` methods when traversing the AST.
+
+---
+
+## Class Definition
+
+```python
+class ASTVisitor(ast.NodeTransformer):
+```
+
+---
+
+## Assignment Instrumentation
+
+### Method: `visit_Assign`
+
+Transforms assignment expressions by wrapping the assigned value with `count_assign`.
+
+### Example Transformation
+
+Original:
+
+```python
+x = 5
+```
+
+Instrumented:
+
+```python
+x = count_assign(5)
+```
+
+### Implementation
+
+```python
+def visit_Assign(self, node):
+    node = self.generic_visit(node)
+    node.value = ast.Call(
+        func=ast.Name(id="count_assign", ctx=ast.Load()),
+        args=[node.value],
+        keywords=[]
+    )
+    return node
+```
+
+---
+
+## Indexing Instrumentation
+
+### Method: `visit_Subscript`
+
+Wraps indexing operations with `count_index`, excluding assignment targets such as:
+
+```python
+arr[i] = x
+```
+
+### Example Transformation
+
+Original:
+
+```python
+arr[i]
+```
+
+Instrumented:
+
+```python
+count_index(arr, i)
+```
+
+### Implementation
+
+```python
+def visit_Subscript(self, node):
+    node = self.generic_visit(node)
+
+    if isinstance(node.ctx, ast.Store):
+        return node
+        
+    return ast.Call(
+        func=ast.Name(id="count_index", ctx=ast.Load()),
+        args=[node.value, node.slice],
+        keywords=[]
+    )
+```
+
+---
+
+## Function Call Instrumentation
+
+### Method: `visit_Call`
+
+Wraps function calls with `count_call`.
+
+### Example Transformation
+
+Original:
+
+```python
+foo(x)
+```
+
+Instrumented:
+
+```python
+count_call(foo, x)
+```
+
+### Implementation
+
+```python
+def visit_Call(self, node):
+    node = self.generic_visit(node)
+    return ast.Call(
+        func=ast.Name(id="count_call", ctx=ast.Load()),
+        args=[node.func] + node.args,
+        keywords=[]
+    )
+```
+
+---
+
+## Comparison Instrumentation
+
+### Method: `visit_Compare`
+
+Maps Python comparison operators to the corresponding functions in the `operator` module and wraps them with `count_compare`.
+
+### Example Transformation
+
+Original:
+
+```python
+a < b
+```
+
+Instrumented:
+
+```python
+count_compare(a, operator.lt, b)
+```
+
+### Supported Operators
+
+| Operator | Mapping |
+|---------|---------|
+| `<` | `lt` |
+| `>` | `gt` |
+| `==` | `eq` |
+| `!=` | `ne` |
+| `<=` | `le` |
+| `>=` | `ge` |
+| `is` | `is` |
+| `is not` | `is_not` |
+| `in` | `in` |
+| `not in` | `not_in` |
+
+### Implementation
+
+```python
+def visit_Compare(self, node):
+    node = self.generic_visit(node)
+
+    op_map = {
+        ast.Lt: "lt",
+        ast.Gt: "gt",
+        ast.Eq: "eq",
+        ast.NotEq: "ne",
+        ast.LtE: "le",
+        ast.GtE: "ge",
+        ast.Is: "is",
+        ast.IsNot: "is_not",
+        ast.In: "in",
+        ast.NotIn: "not_in"
+    }
+
+    op = op_map.get(type(node.ops[0]))
+    if not op:
+        return node
+
+    return ast.Call(
+        func=ast.Name(id="count_compare", ctx=ast.Load()),
+        args=[
+            node.left,
+            ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()),
+            node.comparators[0],
+        ],
+        keywords=[]
+    )
+```
+
+---
+
+## Arithmetic Instrumentation
+
+### Method: `visit_BinOp`
+
+Wraps binary arithmetic operations using `count_arith`.
+
+### Supported Operations
+
+- Addition  
+- Subtraction  
+- Multiplication  
+- Division  
+- Floor division  
+- Modulo  
+- Power  
+- Bitwise operations  
+- Matrix multiplication  
+
+### Example Transformation
+
+Original:
 
 ```python
 a + b
 ```
-With
+
+Instrumented:
+
 ```python
 count_arith(a, operator.add, b)
 ```
 
-<b>Note</b> Modulo (%), power (**), and floor division (//) are not supported yet.
+### Implementation
+
+```python
+def visit_BinOp(self, node):
+    node = self.generic_visit(node)
+
+    if not isinstance(node.parent, ast.Assign):
+        op_map = {
+            ast.Add: "add",
+            ast.Sub: "sub",
+            ast.Mult: "mul",
+            ast.Div: "truediv",
+            ast.FloorDiv: "floordiv",
+            ast.Mod: "mod",
+            ast.Pow: "pow",
+            ast.LShift: "lshift",
+            ast.RShift: "rshift",
+            ast.BitOr: "or",
+            ast.BitXor: "xor",
+            ast.BitAnd: "and_",
+            ast.MatMult: "matmul"
+        }
+
+        op = op_map.get(type(node.op))
+        if op:
+            return ast.Call(
+                func=ast.Name(id="count_arith", ctx=ast.Load()),
+                args=[
+                    node.left,
+                    ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()),
+                    node.right
+                ],
+                keywords=[]
+            )
+    return node
+```
+
+---
+
+# Roadmap / Planned Improvements
+
+This section outlines planned features, architectural decisions, and future improvements for the project. Items listed here are either under consideration or scheduled for future implementation.
+
+---
+
+## 1. Project Restructuring
+
+### 1.1 Convert Test Code into Full Project Layout
+
+Restructure the current test-based implementation into a standard Python project layout. This will improve maintainability, modularity, and scalability.
+
+Planned changes include:
+
+- Separating core logic, runtime counters, and CLI utilities
+- Introducing a dedicated `src/` directory structure
+- Adding a `tests/` directory for automated testing
+- Preparing the project for packaging and distribution
+
+---
+
+## 2. Python Package & Versioning
+
+### 2.1 Create an Installable Python Package
+
+Convert the project into an installable Python package using modern packaging standards.
+
+Planned tasks:
+
+- Create `pyproject.toml` or `setup.py`
+- Add versioning support
+- Define package metadata (name, description, author)
+- Configure build tools (setuptools / poetry)
+
+---
+
+### 2.2 Dependency Management
+
+Establish a dependency management system to ensure reproducible builds and environments.
+
+This includes:
+
+- Defining required packages
+- Creating a `requirements.txt` or dependency lock file
+- Supporting virtual environments
+
+---
+
+## 3. Core Feature Expansion
+
+### 3.1 Full File Analysis Support
+
+Extend the analysis engine to operate on entire Python files instead of isolated functions.
+
+This will allow:
+
+- Whole-program instrumentation
+- Cross-function operation tracking
+- Realistic runtime behavior analysis
+
+---
+
+### 3.2 External File Input Support
+
+Allow users to provide a target Python file as input to the tool.
+
+Planned usage methods:
+
+- Command-line argument input
+- Programmatic API calls from external scripts
+- Configuration file support
+
+---
+
+### 3.3 Comprehensive Documentation
+
+Expand documentation to clearly describe:
+
+- The purpose of each counter function
+- The role of each AST transformation method
+- Internal data flow and execution pipeline
+- Usage examples and expected output
+
+This will improve usability and academic reproducibility.
+
+---
+
+## 4. Entry Point Design
+
+Investigate multiple entry point options for interacting with the tool.
+
+Potential interfaces include:
+
+- Command Line Interface (CLI)
+- Python API module
+- Script-based invocation
+- Web-based interface (optional)
+
+The final interface design will depend on deployment goals and user requirements.
+
+---
+
+## 5. Deployment & Hosting Strategy
+
+Determine how the project will be deployed and served in production environments.
+
+---
+
+### 5.1 Continuous Integration (CI) Integration
+
+Investigate linking the project to a Jenkins virtual machine for automated builds and updates.
+
+Planned capabilities:
+
+- Automatic testing on commits
+- Build verification
+- Deployment triggers
+
+---
+
+### 5.2 Virtual Machine Hosting
+
+Explore hosting the project on a dedicated virtual machine.
+
+This may include:
+
+- Public access deployment
+- Internal research environment hosting
+- Remote API access
+
+---
+
+### 5.3 DNS & Networking Configuration
+
+Clarify network requirements for project access and service discovery.
+
+Topics to evaluate:
+
+- Domain name registration vs internal DNS routing
+- Service discovery mechanisms
+- Public vs private access configuration
+
+---
