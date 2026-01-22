@@ -30,7 +30,7 @@ This is done automatically by the transformer as any visit_* method is used wher
 
 ### 2. AST Transformation
 
-The class `Arithmetic_Visiter` extends `ast.NodeTransformer` and overrides `visit_BinOp` to replace:
+The class `ASTVisitor` extends `ast.NodeTransformer` and overrides `visit_BinOp` to replace:
 
 ```python
 a + b

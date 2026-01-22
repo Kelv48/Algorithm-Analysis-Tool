@@ -38,9 +38,19 @@ def main():
         "count_compare": count_compare,
         "count_index": count_index,
         "operator": operator
+        # Add in the counting of for and while loops
+        # Count modulus, exponentiation etc.. not implemented yet
+
+        # Add any other necessary imports or helper functions here
+        # Maybe add in a logger to log the operations being performed
+        # This could be useful for debugging and understanding the analysis process
     }
+    # Example array to sort
     arr = [2, 5, 3, 1, 4]
 
+    # Currently only can run a single function at a time, look into creating a class that can scrub through the code and find the functions
+    # Allowing us to execute the main code body
+    # And then execute each function one by one
     exec(code, exec_globals)
     function_name = f"{name}"
     function_name = function_name.split(".")[0]
