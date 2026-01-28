@@ -1,0 +1,9 @@
+- Should we count for and while loops as ast does have them as their own objects
+- Do we care about individual functions or full files, or should we simply allow both
+- I've added things like not in is that something we want sep from other binOps or is it fine integrated
+- Should we allow a toggle to allow users to choose what they want to be compared
+- A helper function or stick with the cli only
+    - Using the helper can we compare function implementations directly
+    - Do we want things like graphs or should we stick with just the numbers and to try display them in a formatted way
+- Do we want a way for someone to simple import the tool rather than running it directly or running it through cli
+    - So that someone can just run .analyze and plug in the code and where to find it

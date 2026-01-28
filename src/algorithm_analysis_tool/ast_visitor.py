@@ -1,4 +1,5 @@
 import ast
+import operator
 
 
 # Add in for and while loop counting
@@ -10,6 +11,17 @@ COUNTERS = {
     "comparisons": 0,
     "arithmetic": 0
 }
+
+def reset_counters():
+    global COUNTERS
+    COUNTERS = {
+        "assignments": 0,
+        "indexing": 0,
+        "function_calls": 0,
+        "comparisons": 0,
+        "arithmetic": 0
+    }
+
 
 def count_arith(a, op, b):
     """
@@ -173,32 +185,126 @@ class ASTVisitor(ast.NodeTransformer):
         """
         node = self.generic_visit(node)
 
-        if not isinstance(node.parent, ast.Assign): # Check that the parent node isn't an assignment so we dont wrap within ourselves repeatedly
-            op_map = {
-                ast.Add: "add",
-                ast.Sub: "sub",
-                ast.Mult: "mul",
-                ast.Div: "truediv",
-                ast.FloorDiv: "floordiv",
-                ast.Mod: "mod",
-                ast.Pow: "pow",
-                ast.LShift: "lshift",
-                ast.RShift: "rshift",
-                ast.BitOr: "or",
-                ast.BitXor: "xor",
-                ast.BitAnd: "and_",
-                ast.MatMult: "matmul"
-            }
+        op_map = {
+            ast.Add: "add",
+            ast.Sub: "sub",
+            ast.Mult: "mul",
+            ast.Div: "truediv",
+            ast.FloorDiv: "floordiv",
+            ast.Mod: "mod",
+            ast.Pow: "pow",
+            ast.LShift: "lshift",
+            ast.RShift: "rshift",
+            ast.BitOr: "or_",
+            ast.BitXor: "xor",
+            ast.BitAnd: "and_",
+            ast.MatMult: "matmul"
+        }
 
-            op = op_map.get(type(node.op))
-            if op:
-                return ast.Call(
-                    func=ast.Name(id="count_arith", ctx=ast.Load()),
-                    args=[
-                        node.left,
-                        ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()), # This line maps to op in the count_arith func
-                        node.right
-                    ],
-                    keywords=[]
-                )
-        return node
+        op_name = op_map.get(type(node.op))
+
+        if not op_name:
+            return node
+
+        return ast.Call(
+            func=ast.Name(id="count_arith", ctx=ast.Load()),
+            args=[
+                node.left,
+                ast.Attribute(
+                    value=ast.Name(id="operator", ctx=ast.Load()),
+                    attr=op_name,
+                    ctx=ast.Load()
+                ),
+                node.right
+            ],
+            keywords=[]
+        )
+
+
+# Test code 
+def run_and_count(src):
+    global COUNTERS
+    COUNTERS = {
+        "assignments": 0,
+        "indexing": 0,
+        "function_calls": 0,
+        "comparisons": 0,
+        "arithmetic": 0
+    }
+
+    tree = ast.parse(src)
+
+    # Add parent pointers (needed for your BinOp logic)
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            child.parent = node
+
+    transformer = ASTVisitor()
+    new_tree = transformer.visit(tree)
+    ast.fix_missing_locations(new_tree)
+
+    env = {
+        "count_assign": count_assign,
+        "count_index": count_index,
+        "count_call": count_call,
+        "count_compare": count_compare,
+        "count_arith": count_arith,
+        "operator": operator,
+        "COUNTERS": COUNTERS,
+    }
+
+    exec(compile(new_tree, "<test>", "exec"), env)
+
+    return COUNTERS.copy()
+
+if __name__ == "__main__":
+
+    # The following tests should all pass
+    result = run_and_count("x = 1 + 2")
+    assert result["arithmetic"] == 1
+    assert result["assignments"] == 1
+
+    code = "x = (1 + 2) * (3 + 4)"
+    result = run_and_count(code)
+    assert result["arithmetic"] == 3
+    assert result["assignments"] == 1
+
+    code = """arr = [10,20,30]; x = arr[1]"""
+    result = run_and_count(code)
+    assert result["indexing"] == 1
+    assert result["assignments"] == 2
+
+    code = """
+def f(x):
+    return x + 1
+
+y = f(3)
+"""
+    result = run_and_count(code)
+    assert result["function_calls"] == 1
+    assert result["arithmetic"] == 1
+    assert result["assignments"] == 1
+
+    code = """
+x = 3 < 5
+"""
+    result = run_and_count(code)
+    assert result["comparisons"] == 1
+    assert result["assignments"] == 1
+
+    code = """
+arr = [1,2,3]
+x = arr[0] + arr[1]
+if x > 2:
+    y = x * 2
+"""
+    result = run_and_count(code)
+    assert result["indexing"] == 2
+    assert result["arithmetic"] == 2
+    assert result["comparisons"] == 1
+    assert result["assignments"] == 3
+
+    code = """x = y = 1 + 2"""
+    result = run_and_count(code)
+    assert result["arithmetic"] == 1
+    assert result["assignments"] == 2
