@@ -126,9 +126,7 @@ class ASTVisitor(ast.NodeTransformer):
             )
             return node
 
-        # Multi-target: x = y = expr
         temp_name = self._new_temp()
-
         temp_assign = ast.Assign(
             targets=[ast.Name(id=temp_name, ctx=ast.Store())],
             value=node.value
@@ -194,7 +192,6 @@ class ASTVisitor(ast.NodeTransformer):
             ast.NotIn: "not_"
         }
 
-        # Chain comparisons: a < b < c
         left = node.left
         new_expr = None
 
@@ -226,8 +223,6 @@ class ASTVisitor(ast.NodeTransformer):
             left = right
 
         return new_expr
-
-
 
     def visit_BinOp(self, node):
         """
