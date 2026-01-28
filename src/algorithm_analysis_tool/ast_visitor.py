@@ -101,21 +101,55 @@ def count_compare(a, op, b):
     return op(a, b)
 
 class ASTVisitor(ast.NodeTransformer):
-    
     """
     NodeTransformer will auto call any visit_* methods we create. \n
     When we call visit(node) the transformer checks the node type and looks for a matching method
-    """    
+    """  
+    def __init__(self):
+        self.temp_counter = 0
+        super().__init__()
+
+    def _new_temp(self):
+        name = f"_assign_tmp_{self.temp_counter}"
+        self.temp_counter += 1
+        return name
+      
     def visit_Assign(self, node):
-        """
-            Visit assignment nodes to wrap the assigned value with a call to count_assign."""
         node = self.generic_visit(node)
-        node.value = ast.Call(
-            func=ast.Name(id="count_assign", ctx=ast.Load()),
-            args=[node.value],
-            keywords=[]
+
+        # Single target: normal behavior
+        if len(node.targets) == 1:
+            node.value = ast.Call(
+                func=ast.Name(id="count_assign", ctx=ast.Load()),
+                args=[node.value],
+                keywords=[]
+            )
+            return node
+
+        # Multi-target: x = y = expr
+        temp_name = self._new_temp()
+
+        temp_assign = ast.Assign(
+            targets=[ast.Name(id=temp_name, ctx=ast.Store())],
+            value=node.value
         )
-        return node
+
+        new_nodes = [temp_assign]
+
+        for target in node.targets:
+            new_assign = ast.Assign(
+                targets=[target],
+                value=ast.Call(
+                    func=ast.Name(id="count_assign", ctx=ast.Load()),
+                    args=[ast.Name(id=temp_name, ctx=ast.Load())],
+                    keywords=[]
+                )
+            )
+
+            ast.copy_location(new_assign, node)
+            new_nodes.append(new_assign)
+
+        return new_nodes
 
     def visit_Subscript(self, node):
         """
