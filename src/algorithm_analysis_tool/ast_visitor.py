@@ -291,54 +291,75 @@ def run_and_count(src):
 
     return COUNTERS.copy()
 
-if __name__ == "__main__":
+def run_code(src: str):
+    reset_counters()
 
-    # The following tests should all pass
-    result = run_and_count("x = 1 + 2")
-    assert result["arithmetic"] == 1
-    assert result["assignments"] == 1
+    tree = ast.parse(src)
 
-    code = "x = (1 + 2) * (3 + 4)"
-    result = run_and_count(code)
-    assert result["arithmetic"] == 3
-    assert result["assignments"] == 1
+    transformer = ASTVisitor()
+    tree = transformer.visit(tree)
+    ast.fix_missing_locations(tree)
 
-    code = """arr = [10,20,30]; x = arr[1]"""
-    result = run_and_count(code)
-    assert result["indexing"] == 1
-    assert result["assignments"] == 2
+    env = {
+        "count_assign": count_assign,
+        "count_index": count_index,
+        "count_call": count_call,
+        "count_compare": count_compare,
+        "count_arith": count_arith,
+        "operator": operator,
+        "COUNTERS": COUNTERS,
+    }
 
-    code = """
+    exec(compile(tree, "<instrumented>", "exec"), env)
+
+    return COUNTERS.copy()
+
+# The following tests should all pass
+result = run_and_count("x = 1 + 2")
+assert result["arithmetic"] == 1
+assert result["assignments"] == 1
+
+code = "x = (1 + 2) * (3 + 4)"
+result = run_and_count(code)
+assert result["arithmetic"] == 3
+assert result["assignments"] == 1
+
+code = """arr = [10,20,30]; x = arr[1]"""
+result = run_and_count(code)
+assert result["indexing"] == 1
+assert result["assignments"] == 2
+
+code = """
 def f(x):
-    return x + 1
+return x + 1
 
 y = f(3)
 """
-    result = run_and_count(code)
-    assert result["function_calls"] == 1
-    assert result["arithmetic"] == 1
-    assert result["assignments"] == 1
+result = run_and_count(code)
+assert result["function_calls"] == 1
+assert result["arithmetic"] == 1
+assert result["assignments"] == 1
 
-    code = """
+code = """
 x = 3 < 5
 """
-    result = run_and_count(code)
-    assert result["comparisons"] == 1
-    assert result["assignments"] == 1
+result = run_and_count(code)
+assert result["comparisons"] == 1
+assert result["assignments"] == 1
 
-    code = """
+code = """
 arr = [1,2,3]
 x = arr[0] + arr[1]
 if x > 2:
-    y = x * 2
+y = x * 2
 """
-    result = run_and_count(code)
-    assert result["indexing"] == 2
-    assert result["arithmetic"] == 2
-    assert result["comparisons"] == 1
-    assert result["assignments"] == 3
+result = run_and_count(code)
+assert result["indexing"] == 2
+assert result["arithmetic"] == 2
+assert result["comparisons"] == 1
+assert result["assignments"] == 3
 
-    code = """x = y = 1 + 2"""
-    result = run_and_count(code)
-    assert result["arithmetic"] == 1
-    assert result["assignments"] == 2
+code = """x = y = 1 + 2"""
+result = run_and_count(code)
+assert result["arithmetic"] == 1
+assert result["assignments"] == 2
