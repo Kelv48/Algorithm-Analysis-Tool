@@ -179,9 +179,6 @@ class ASTVisitor(ast.NodeTransformer):
         )
 
     def visit_Compare(self, node):
-        """
-            Visits comparison nodes to wrap them with a call to count_compare.
-        """
         node = self.generic_visit(node)
 
         op_map = {
@@ -191,26 +188,45 @@ class ASTVisitor(ast.NodeTransformer):
             ast.NotEq: "ne",
             ast.LtE: "le",
             ast.GtE: "ge",
-            ast.Is: "is",
+            ast.Is: "is_",
             ast.IsNot: "is_not",
-            ast.In: "in",
-            ast.NotIn: "not_in"
+            ast.In: "contains",
+            ast.NotIn: "not_"
         }
 
-        op = op_map.get(type(node.ops[0]))
-        if not op:
-            # Unsupported comparison operator; leave node unchanged.
-            return node
+        # Chain comparisons: a < b < c
+        left = node.left
+        new_expr = None
 
-        return ast.Call(
-            func=ast.Name(id="count_compare", ctx=ast.Load()),
-            args=[
-                node.left,
-                ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()),
-                node.comparators[0],
-            ],
-            keywords=[]
-        )
+        for op, right in zip(node.ops, node.comparators):
+            op_name = op_map.get(type(op))
+
+            if not op_name:
+                return node
+
+            call = ast.Call(
+                func=ast.Name(id="count_compare", ctx=ast.Load()),
+                args=[
+                    left,
+                    ast.Attribute(
+                        value=ast.Name(id="operator", ctx=ast.Load()),
+                        attr=op_name,
+                        ctx=ast.Load()
+                    ),
+                    right
+                ],
+                keywords=[]
+            )
+
+            new_expr = call if new_expr is None else ast.BoolOp(
+                op=ast.And(),
+                values=[new_expr, call]
+            )
+
+            left = right
+
+        return new_expr
+
 
 
     def visit_BinOp(self, node):
@@ -254,42 +270,6 @@ class ASTVisitor(ast.NodeTransformer):
             keywords=[]
         )
 
-
-# Test code 
-def run_and_count(src):
-    global COUNTERS
-    COUNTERS = {
-        "assignments": 0,
-        "indexing": 0,
-        "function_calls": 0,
-        "comparisons": 0,
-        "arithmetic": 0
-    }
-
-    tree = ast.parse(src)
-
-    # Add parent pointers (needed for your BinOp logic)
-    for node in ast.walk(tree):
-        for child in ast.iter_child_nodes(node):
-            child.parent = node
-
-    transformer = ASTVisitor()
-    new_tree = transformer.visit(tree)
-    ast.fix_missing_locations(new_tree)
-
-    env = {
-        "count_assign": count_assign,
-        "count_index": count_index,
-        "count_call": count_call,
-        "count_compare": count_compare,
-        "count_arith": count_arith,
-        "operator": operator,
-        "COUNTERS": COUNTERS,
-    }
-
-    exec(compile(new_tree, "<test>", "exec"), env)
-
-    return COUNTERS.copy()
 
 def run_code(src: str):
     reset_counters()
