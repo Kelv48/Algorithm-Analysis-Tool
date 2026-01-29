@@ -146,3 +146,7 @@ Topics to evaluate:
 
 All items listed in this section are **under review or pending implementation** and may be adjusted based on project scope, performance requirements, and academic constraints.
 
+
+
+What can be enterted into the tool that cant be coped with that we have no intention of evalutating
+Given this basic machinery how useful will it be for a student

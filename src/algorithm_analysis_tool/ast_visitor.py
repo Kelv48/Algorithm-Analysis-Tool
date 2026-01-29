@@ -3,7 +3,6 @@ import operator
 
 
 # Add in for and while loop counting
-
 COUNTERS = {
     "assignments": 0,
     "indexing": 0,
@@ -107,18 +106,27 @@ class ASTVisitor(ast.NodeTransformer):
     When we call visit(node) the transformer checks the node type and looks for a matching method
     """  
     def __init__(self):
+        """
+            Initializes the ASTVisitor with a temporary variable counter.
+            and sets up the base class.
+        """
         self.temp_counter = 0
         super().__init__()
 
     def _new_temp(self):
+        """
+            Generates a new temporary variable for use in multiple assignments.
+        """
         name = f"_assign_tmp_{self.temp_counter}"
         self.temp_counter += 1
         return name
       
     def visit_Assign(self, node):
+        """
+            Visits assignment nodes to wrap them with a call to count_assign.
+        """
         node = self.generic_visit(node)
 
-        # Single target: normal behavior
         if len(node.targets) == 1:
             node.value = ast.Call(
                 func=ast.Name(id="count_assign", ctx=ast.Load()),
@@ -127,6 +135,9 @@ class ASTVisitor(ast.NodeTransformer):
             )
             return node
 
+        """ 
+            Handle multiple assignments by introducing temporary variables 
+        """
         temp_name = self._new_temp()
         temp_assign = ast.Assign(
             targets=[ast.Name(id=temp_name, ctx=ast.Store())],
@@ -157,11 +168,10 @@ class ASTVisitor(ast.NodeTransformer):
         node = self.generic_visit(node)
 
         if isinstance(node.ctx, ast.Store):
-            # arr[i] = x — cannot transform
             return node
         
         return ast.Call(
-            func=ast.Name(id="count_index", ctx=ast.Load()),
+            func=ast.Name(id="count_index", ctx=ast.Load()), # Wrap indexing with count_index
             args=[node.value, node.slice],
             keywords=[]
         )
@@ -175,9 +185,12 @@ class ASTVisitor(ast.NodeTransformer):
             func=ast.Name(id="count_call", ctx=ast.Load()),
             args=[node.func] + node.args,
             keywords=[]
-        )
+        ) # Count calls/return
 
     def visit_Compare(self, node):
+        """
+            Visits comparison nodes to wrap them with a call to count_compare.
+        """
         node = self.generic_visit(node)
 
         op_map = {

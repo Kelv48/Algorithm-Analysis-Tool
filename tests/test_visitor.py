@@ -4,7 +4,7 @@ import pathlib
 root = pathlib.Path(__file__).resolve().parents[1]
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 sys.path.insert(0, str(ast_visitor_path))
-from algorithm_analysis_tool.ast_visitor import run_code, reset_counters, ASTVisitor
+from algorithm_analysis_tool.ast_visitor import run_code, reset_counters
 
 def test_simple_assignment():
     result = run_code("x = 5")
@@ -30,6 +30,7 @@ x = arr[1]
     result = run_code(code)
     assert result["indexing"] == 1
     assert result["assignments"] == 2
+    assert result["function_calls"] == 0
 
 def test_function_call():
     code = """
@@ -43,6 +44,13 @@ y = f(3)
     assert result["arithmetic"] == 1
     assert result["assignments"] == 1
 
+def test_tuple_indexing():
+    code = """
+t = (5, 10, 15)
+x = t[2]
+"""
+    result = run_code(code)
+    assert result["indexing"] == 1
 
 def test_simple_comparison():
     result = run_code("x = 3 < 5")
