@@ -21,6 +21,7 @@ def reset_counters():
         "comparisons": 0,
         "arithmetic": 0
     }
+    return COUNTERS
 
 
 def count_arith(a, op, b):
