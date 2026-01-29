@@ -73,3 +73,38 @@ def test_no_false_positive():
     assert result["indexing"] == 0
     assert result["function_calls"] == 0
     assert result["comparisons"] == 0
+
+def test_nested_functions():
+    code = """
+def f(x):
+    def g(y):
+        return y * 2
+    return g(x) + 1
+z = f(3)
+"""
+    result = run_code(code)
+    assert result["function_calls"] == 2
+    assert result["arithmetic"] == 2
+    assert result["assignments"] == 1
+
+def test_multiple_operations():
+    from collections import Counter
+    temp = run_code("x = 5 + 3")
+    assert temp["arithmetic"] == 1
+    assert temp["assignments"] == 1 # Check that counters were incremented for the 1st run
+
+    temp2 = run_code("y = 2 * 4")
+    result = Counter(temp) + Counter(temp2)
+    result = dict(result)
+    
+    assert result["arithmetic"] == 2
+    assert result["assignments"] == 2 # Check that counters were incremented for the 2nd run
+
+def test_reset_counters():
+    result = run_code("x = 5 + 3")
+    assert result["arithmetic"] == 1
+    assert result["assignments"] == 1 # Check that counters were incremented for the 1st run
+    reset_counters()
+    result = run_code("y = 2 * 4")
+    assert result["arithmetic"] == 1
+    assert result["assignments"] == 1 # Check that counters were reset before the 2nd run
