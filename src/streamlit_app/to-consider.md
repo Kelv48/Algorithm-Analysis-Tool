@@ -9,4 +9,5 @@
 - Input from file
 - User enters algorithms
 - Seed control
-- Allow repeat run averages 
+- Allow repeat run averages
+- Allow the streamlit app to be ran using docker
