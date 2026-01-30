@@ -1,5 +1,3 @@
-*.python-version
-
 # Python ignores
 __pycache__/
 *.pyc
@@ -8,7 +6,9 @@ __pycache__/
 
 # Virtual environments
 venv/
+.venv
 .env/
+*.python-version
 
 # Build artifacts
 build/
