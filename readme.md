@@ -14,13 +14,20 @@ The system works by transforming the program’s Abstract Syntax Tree (AST) and 
 
 ## Dependencies
 
-This module relies on Python’s built-in `ast` module:
+This module relies heavily on Python’s built-in `ast` module:
 
 ```python
 import ast
 ```
 
 The `ast.NodeTransformer` class is used to traverse and modify the syntax tree.
+
+Also in use are 
+- `matplotlib`
+- `streamlit`
+- `pandas`
+- `plotly`
+- `pytest`
 
 ---
 
