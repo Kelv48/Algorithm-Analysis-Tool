@@ -1,7 +1,7 @@
 import ast, os, sys, argparse
 import operator
 
-from .ast_visitor import ASTVisitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS, count_loop
+from .ast_visitor import ASTVisitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS, count_loop_iteration
 
 def main():
     # CLI entry point to the project
@@ -36,7 +36,7 @@ def main():
         "count_call": count_call,
         "count_compare": count_compare,
         "count_index": count_index,
-        "count_loop": count_loop,
+        "count_loop_iteration": count_loop_iteration,
         "operator": operator
         # Add in the counting of for and while loops
         # Count modulus, exponentiation etc.. not implemented yet

@@ -10,7 +10,8 @@ COUNTERS = {
     "returns": 0,
     "comparisons": 0,
     "arithmetic": 0,
-    "loops": 0
+    "loop_nodes": 0,
+    "loop_iterations": 0
 }
 
 def reset_counters():
@@ -22,12 +23,13 @@ def reset_counters():
         "returns": 0,
         "comparisons": 0,
         "arithmetic": 0,
-        "loops": 0
+        "loop_nodes": 0,
+        "loop_iterations": 0
     }
     return COUNTERS
 
-def count_loop():
-    COUNTERS["loops"] += 1
+def count_loop_iteration():
+    COUNTERS["loop_iterations"] += 1
 
 
 def count_arith(a, op, b):
@@ -288,32 +290,42 @@ class ASTVisitor(ast.NodeTransformer):
         )
     
     def visit_For(self, node):
+        # Count loop existence
+        COUNTERS["loop_nodes"] += 1
+
+        # Visit children first (generic_visit)
         node = self.generic_visit(node)
 
+        # Inject iteration counter at the top of the body
         counter_call = ast.Expr(
             value=ast.Call(
-                func=ast.Name(id="count_loop", ctx=ast.Load()),
+                func=ast.Name(id="count_loop_iteration", ctx=ast.Load()),
                 args=[],
                 keywords=[]
             )
         )
-
         node.body.insert(0, counter_call)
         return node
+
 
     def visit_While(self, node):
+        # Count loop existence
+        COUNTERS["loop_nodes"] += 1
+
+        # Visit children
         node = self.generic_visit(node)
 
+        # Inject iteration counter
         counter_call = ast.Expr(
             value=ast.Call(
-                func=ast.Name(id="count_loop", ctx=ast.Load()),
+                func=ast.Name(id="count_loop_iteration", ctx=ast.Load()),
                 args=[],
                 keywords=[]
             )
         )
-
         node.body.insert(0, counter_call)
         return node
+
 
 
 def run_code(src: str):
@@ -331,7 +343,7 @@ def run_code(src: str):
         "count_call": count_call,
         "count_compare": count_compare,
         "count_arith": count_arith,
-        "count_loop": count_loop,
+        "count_loop_iteration": count_loop_iteration,
         "operator": operator,
         "COUNTERS": COUNTERS,
     }

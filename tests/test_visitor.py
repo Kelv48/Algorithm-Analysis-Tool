@@ -127,7 +127,8 @@ for i in range(5):
     x = i * 2
 """
     result = run_code(code)
-    assert result["loops"] == 5
+    assert result["loop_iterations"] == 5
+    assert result["loop_nodes"] == 1
     assert result["arithmetic"] == 5
     assert result["assignments"] == 5
 
@@ -138,5 +139,50 @@ while i < 5:
     i += 1
 """
     result = run_code(code)
-    assert result["loops"] == 5
+    assert result["loop_iterations"] == 5
+    assert result["loop_nodes"] == 1
     assert result["assignments"] == 1
+
+def test_multiple_assignment():
+    result = run_code("x = y = 5")
+    assert result["assignments"] == 2
+
+def test_power_operation():
+    result = run_code("x = 2 ** 3 ** 2")
+    assert result["arithmetic"] == 2
+
+def test_method_call():
+    code = """
+arr = [1,2,3]
+arr.append(4)
+"""
+    result = run_code(code)
+    assert result["function_calls"] == 1
+
+def test_builtin_call():
+    result = run_code("x = len([1,2,3])")
+    assert result["function_calls"] == 1
+
+def test_call_inside_expression():
+    code = """
+def f(x): return x + 1
+x = f(2) * f(3)
+"""
+    result = run_code(code)
+    assert result["function_calls"] == 2
+    assert result["arithmetic"] == 3
+
+def test_mixed_comparisons():
+    result = run_code("x = 1 < 2 <= 3 != 4")
+    assert result["comparisons"] == 3
+
+def test_comparison_in_loop():
+    code = """
+for i in range(5):
+    if i > 2:
+        pass
+"""
+    result = run_code(code)
+    assert result["comparisons"] == 5
+    assert result["loop_iterations"] == 5
+    assert result["loop_nodes"] == 1
