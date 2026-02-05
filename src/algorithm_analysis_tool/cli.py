@@ -1,33 +1,38 @@
-import ast, os, sys, argparse
+import ast, sys, argparse
 import operator
 
-from .ast_visitor import ASTVisitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS, count_loop_iteration
+from .ast_visitor import (
+    ASTVisitor, count_arith, count_assign, count_call,
+    count_compare, count_index, COUNTERS, count_loop_iteration
+)
 
 def main():
-    # CLI entry point to the project
-    # To-do: Implement a helper function (e.g., run_cli_analysis(file_path: str) -> dict) that
-    # programmatically performs the same analysis as the CLI. The function should accept a path to a Python file,
-    # run the analysis (as done below), and return the results (e.g., a dictionary with the arithmetic operation count).
-    # This will allow other modules or potential API endpoints to reuse the analysis logic without invoking the CLI.
-    # Could also allow toggle options for different types of analysis
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()
     
-    filename = sys.argv[1]
-    name = os.path.basename(filename)
-
+    # Read the file
     with open(args.file, "r") as f:
-        tree = ast.parse(f.read())
+        source = f.read()
 
-    for child in ast.walk(tree):
-        for sub in ast.iter_child_nodes(child):
-            sub.parent = child  # Keep track of the parent nodes for use by the methods
+    tree = ast.parse(source)
 
-    visited_tree = ASTVisitor().visit(tree)
-    ast.fix_missing_locations(visited_tree)
+    # Map function names -> AST nodes
+    function_map = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
 
-    code = compile(visited_tree, filename="<ast>", mode="exec")
+    if not function_map:
+        print("No functions found in the file.")
+        sys.exit(1)
+
+    print("Available functions:")
+    for name in function_map:
+        print("-", name)
+
+    choice = input("Which function do you want to run? ")
+
+    if choice not in function_map:
+        print("Invalid choice")
+        sys.exit(1)
 
     exec_globals = {
         "COUNTERS": COUNTERS,
@@ -38,25 +43,31 @@ def main():
         "count_index": count_index,
         "count_loop_iteration": count_loop_iteration,
         "operator": operator
-        # Add in the counting of for and while loops
-        # Count modulus, exponentiation etc.. not implemented yet
-
-        # Add any other necessary imports or helper functions here
-        # Maybe add in a logger to log the operations being performed
-        # This could be useful for debugging and understanding the analysis process
     }
-    # Example array to sort
+
+    exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
+
+    visitor = ASTVisitor()
+    instrumented_node = visitor.visit(function_map[choice])
+    ast.fix_missing_locations(instrumented_node)
+
+    module_ast = ast.Module(body=[instrumented_node], type_ignores=[])
+    code_obj = compile(module_ast, filename="<ast>", mode="exec")
+
+    # Prepare globals for execution
+
+    # Execute function definition
+    exec(code_obj, exec_globals)
+
+    # Example input array for algorithms that need it
     arr = [2, 5, 3, 1, 4]
 
-    # Currently only can run a single function at a time, look into creating a class that can scrub through the code and find the functions
-    # Allowing us to execute the main code body
-    # And then execute each function one by one
-    exec(code, exec_globals)
-    function_name = f"{name}"
-    function_name = function_name.split(".")[0]
-    exec_globals[function_name](arr)
+    # Call the selected function dynamically
+    result = exec_globals[choice](arr)
+    print("Result:", result)
 
-    print("Analysis Results:")
+    # Print analysis counters
+    print("\nAnalysis Results:")
     for key, value in COUNTERS.items():
         print(f"{key}: {value}")
 
