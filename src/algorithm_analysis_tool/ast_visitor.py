@@ -8,7 +8,8 @@ COUNTERS = {
     "indexing": 0,
     "function_calls": 0,
     "comparisons": 0,
-    "arithmetic": 0
+    "arithmetic": 0,
+    "loops": 0
 }
 
 def reset_counters():
@@ -18,9 +19,13 @@ def reset_counters():
         "indexing": 0,
         "function_calls": 0,
         "comparisons": 0,
-        "arithmetic": 0
+        "arithmetic": 0,
+        "loops": 0
     }
     return COUNTERS
+
+def count_loop():
+    COUNTERS["loops"] += 1
 
 
 def count_arith(a, op, b):
@@ -278,6 +283,34 @@ class ASTVisitor(ast.NodeTransformer):
             ],
             keywords=[]
         )
+    
+    def visit_For(self, node):
+        node = self.generic_visit(node)
+
+        counter_call = ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="count_loop", ctx=ast.Load()),
+                args=[],
+                keywords=[]
+            )
+        )
+
+        node.body.insert(0, counter_call)
+        return node
+
+    def visit_While(self, node):
+        node = self.generic_visit(node)
+
+        counter_call = ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="count_loop", ctx=ast.Load()),
+                args=[],
+                keywords=[]
+            )
+        )
+
+        node.body.insert(0, counter_call)
+        return node
 
 
 def run_code(src: str):
@@ -295,6 +328,7 @@ def run_code(src: str):
         "count_call": count_call,
         "count_compare": count_compare,
         "count_arith": count_arith,
+        "count_loop": count_loop,
         "operator": operator,
         "COUNTERS": COUNTERS,
     }

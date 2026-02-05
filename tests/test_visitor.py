@@ -120,3 +120,23 @@ def test_reset_counters():
     result = run_code("y = 2 * 4")
     assert result["arithmetic"] == 1
     assert result["assignments"] == 1 # Check that counters were reset before the 2nd run
+
+def test_loop_count():
+    code = """
+for i in range(5):
+    x = i * 2
+"""
+    result = run_code(code)
+    assert result["loops"] == 5
+    assert result["arithmetic"] == 5
+    assert result["assignments"] == 5
+
+def test_while_loop_count():
+    code = """
+i = 0
+while i < 5:
+    i += 1
+"""
+    result = run_code(code)
+    assert result["loops"] == 5
+    assert result["assignments"] == 1

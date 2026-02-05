@@ -150,3 +150,5 @@ All items listed in this section are **under review or pending implementation** 
 
 What can be enterted into the tool that cant be coped with that we have no intention of evalutating
 Given this basic machinery how useful will it be for a student
+
+- Test streamlit components for thurs
