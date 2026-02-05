@@ -7,6 +7,7 @@ COUNTERS = {
     "assignments": 0,
     "indexing": 0,
     "function_calls": 0,
+    "returns": 0,
     "comparisons": 0,
     "arithmetic": 0,
     "loops": 0
@@ -18,6 +19,7 @@ def reset_counters():
         "assignments": 0,
         "indexing": 0,
         "function_calls": 0,
+        "returns": 0,
         "comparisons": 0,
         "arithmetic": 0,
         "loops": 0
@@ -87,6 +89,7 @@ def count_call(fn, *args, **kwargs):
             The result of the function call.
     """
     COUNTERS["function_calls"] += 1
+    COUNTERS["returns"] += 1
     return fn(*args, **kwargs)
 
 def count_compare(a, op, b):

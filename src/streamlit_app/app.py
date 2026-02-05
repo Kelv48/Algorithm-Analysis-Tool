@@ -4,13 +4,16 @@ import plotly.express as px
 
 st.title("Algorithm Operation Analysis")
 
+st.header("Bubble Sort Analysis")
+st.text("Using the arr [2, 5, 3, 1, 4]")
 # Your results
 results = {
     "assignments": 15,
     "indexing": 30,
     "function_calls": 6,
     "comparisons": 10,
-    "arithmetic": 28
+    "arithmetic": 28,
+    "loops": 14
 }
 
 # Convert to DataFrame
