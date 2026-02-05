@@ -13,7 +13,8 @@ results = {
     "function_calls": 6,
     "comparisons": 10,
     "arithmetic": 28,
-    "loops": 14
+    "loop_nodes": 2,
+    "loop_iterations": 14
 }
 
 # Convert to DataFrame

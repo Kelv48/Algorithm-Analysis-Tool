@@ -29,6 +29,10 @@ def reset_counters():
     return COUNTERS
 
 def count_loop_iteration():
+    """
+        Counts the loop iterations being performed \n.
+        Increments the global loop iteration counter by 1.
+    """
     COUNTERS["loop_iterations"] += 1
 
 
@@ -290,7 +294,9 @@ class ASTVisitor(ast.NodeTransformer):
         )
     
     def visit_For(self, node):
-        # Count loop existence
+        """
+            Visits for loop nodes to wrap them with a call to count_loop_iteration and count_loop.
+        """
         COUNTERS["loop_nodes"] += 1
 
         # Visit children first (generic_visit)
@@ -309,13 +315,12 @@ class ASTVisitor(ast.NodeTransformer):
 
 
     def visit_While(self, node):
-        # Count loop existence
+        """    
+            Visits while loop nodes to wrap them with a call to count_loop_iteration and count_loop.
+        """
         COUNTERS["loop_nodes"] += 1
-
-        # Visit children
         node = self.generic_visit(node)
 
-        # Inject iteration counter
         counter_call = ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="count_loop_iteration", ctx=ast.Load()),

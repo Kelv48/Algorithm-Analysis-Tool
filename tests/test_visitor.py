@@ -99,27 +99,27 @@ def test_multiple_operations():
     from collections import Counter
     temp = run_code("x = 5 + 3")
     assert temp["arithmetic"] == 1
-    assert temp["assignments"] == 1 # Check that counters were incremented for the 1st run
+    assert temp["assignments"] == 1
 
     temp2 = run_code("y = 2 * 4")
     result = Counter(temp) + Counter(temp2)
     result = dict(result)
 
     assert result["arithmetic"] == 2
-    assert result["assignments"] == 2 # Check that counters were incremented for the 2nd run
+    assert result["assignments"] == 2
 
 def test_reset_counters():
     result = run_code("x = 5 + 3")
     assert result["arithmetic"] == 1
-    assert result["assignments"] == 1 # Check that counters were incremented for the 1st run
+    assert result["assignments"] == 1
 
     result = reset_counters()
     assert result["arithmetic"] == 0
-    assert result["assignments"] == 0 # Check that counters were reset
+    assert result["assignments"] == 0
 
     result = run_code("y = 2 * 4")
     assert result["arithmetic"] == 1
-    assert result["assignments"] == 1 # Check that counters were reset before the 2nd run
+    assert result["assignments"] == 1
 
 def test_loop_count():
     code = """
