@@ -1,8 +1,12 @@
+.vscode/
+.idea/
+
 # Python ignores
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
 
 # Virtual environments
 venv/
