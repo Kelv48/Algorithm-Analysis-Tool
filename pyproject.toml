@@ -5,15 +5,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Algorithm-Analysis-Tool"
-version = "2025.1.2"
+version = "2025.1.4"
 description = "A command-line tool for analyzing algorithms."
 authors = [
 { name="Kelvin", email="kelvinosagie05@gmail.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
-
+dependencies = [
+    "streamlit",
+    "pandas",
+    "plotly",
+    "streamlit_autorefresh",
+    "matplotlib",
+    "pytest"
+]
 
 [project.scripts]
 algorithm-analysis = "algorithm_analysis_tool.cli:main"

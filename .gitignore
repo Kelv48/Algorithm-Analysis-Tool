@@ -1,14 +1,18 @@
-*.python-version
+.vscode/
+.idea/
 
 # Python ignores
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
 
 # Virtual environments
 venv/
+.venv
 .env/
+*.python-version
 
 # Build artifacts
 build/

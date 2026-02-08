@@ -1,53 +1,93 @@
-import ast, os, sys, argparse
+import ast, sys, argparse
 import operator
 
-from .ast_visitor import AST_Visitor, count_arith, count_assign, count_call, count_compare, count_index, COUNTERS
+from .ast_visitor import (
+    ASTVisitor, count_arith, count_assign, count_call,
+    count_compare, count_index, count_loop_iteration, reset_counters
+)
+
+counters = {
+    "assignments": 0,
+    "indexing": 0,
+    "function_calls": 0,
+    "returns": 0,
+    "comparisons": 0,
+    "arithmetic": 0,
+    "loop_nodes": 0,
+    "loop_iterations": 0
+    }
+
 
 def main():
-    # CLI entry point to the project
-    # To-do: Implement a helper function (e.g., run_cli_analysis(file_path: str) -> dict) that
-    # programmatically performs the same analysis as the CLI. The function should accept a path to a Python file,
-    # run the analysis (as done below), and return the results (e.g., a dictionary with the arithmetic operation count).
-    # This will allow other modules or potential API endpoints to reuse the analysis logic without invoking the CLI.
-    # Could also allow toggle options for different types of analysis
-    # Using ast transformation we could allow different languages to be analyzed by converting them to python ast first
+    counters = reset_counters(counters)
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()
     
-    filename = sys.argv[1]
-    name = os.path.basename(filename)
-
+    # Read the file
     with open(args.file, "r") as f:
-        tree = ast.parse(f.read())
+        source = f.read()
 
-    for child in ast.walk(tree):
-        for sub in ast.iter_child_nodes(child):
-            sub.parent = child  # Keep track of the parent nodes for use by the methods
+    tree = ast.parse(source)
 
-    visited_tree = AST_Visitor().visit(tree)
-    ast.fix_missing_locations(visited_tree)
+    # Map function names -> AST nodes
+    function_map = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
 
-    code = compile(visited_tree, filename="<ast>", mode="exec")
+    if not function_map:
+        print("No functions found in the file.")
+        sys.exit(1)
+
+    print("Available functions:")
+    for name in function_map:
+        print("-", name)
+
+    choice = input("Which function do you want to run? ")
+
+    if choice not in function_map:
+        print("Invalid choice")
+        sys.exit(1)
 
     exec_globals = {
-        "COUNTERS": COUNTERS,
+        "COUNTERS": counters,
         "count_arith": count_arith,
         "count_assign": count_assign,
         "count_call": count_call,
         "count_compare": count_compare,
         "count_index": count_index,
+        "count_loop_iteration": count_loop_iteration,
         "operator": operator
     }
-    arr = [2, 5, 3, 1, 4]
 
-    exec(code, exec_globals)
-    function_name = f"{name}"
-    function_name = function_name.split(".")[0]
-    exec_globals[function_name](arr)
+    exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
 
-    print("Analysis Results:")
-    for key, value in COUNTERS.items():
+    visitor = ASTVisitor(counters)
+    instrumented_node = visitor.visit(function_map[choice])
+    ast.fix_missing_locations(instrumented_node)
+
+    module_ast = ast.Module(body=[instrumented_node], type_ignores=[])
+    code_obj = compile(module_ast, filename="<ast>", mode="exec")
+
+    # Prepare globals for execution
+
+    result = exec_globals[choice](arr)
+    print("Result:", result)
+
+    # Example input array for algorithms that need it
+    from random import randint
+    arr = []
+
+    for i in range(10000):
+        i = randint(1, 500)
+        arr.append(i)
+    # arr = [2, 5, 3, 1, 4]
+
+    # Call the selected function dynamically
+    exec_globals[choice](arr)
+    # print("Result:", result)
+
+    # Print analysis counters
+    print("\nAnalysis Results:")
+    for key, value in counters.items():
         print(f"{key}: {value}")
 
 

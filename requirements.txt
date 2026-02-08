@@ -1,0 +1,6 @@
+matplotlib
+streamlit
+pandas
+plotly
+pytest
+streamlit_autorefresh
