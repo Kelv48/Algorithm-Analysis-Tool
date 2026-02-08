@@ -148,15 +148,15 @@ All items listed in this section are **under review or pending implementation** 
 
 
 
-What can be enterted into the tool that cant be coped with that we have no intention of evalutating
-Given this basic machinery how useful will it be for a student
+### 6. Open Questions and Design Considerations
 
-- Test streamlit components for thurs
-
-- How things are being counted
-- The complexity on a range of inputs
-- Allow users to enter anything they want
-    Or to choose from a preselected list
-    list lenths
-    how they are generated
-    number of iterations per
+- Identify inputs that the tool cannot reliably handle and that are explicitly out of scope for evaluation.
+- Assess, given the current analysis machinery, how useful the tool will be for students in educational settings.
+- Test Streamlit components before the next milestone (e.g., Thursday) to validate the interactive interface.
+- Document how operations and events are being counted during analysis.
+- Characterize computational complexity across a representative range of input sizes and patterns.
+- Decide whether users can enter arbitrary code/inputs or must choose from a curated, preselected set of examples.
+- Define input configuration parameters, including:
+    - Typical list lengths to support
+    - How input data is generated
+    - The number of iterations per experiment
