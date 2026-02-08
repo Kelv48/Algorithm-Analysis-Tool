@@ -12,7 +12,14 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "streamlit",
+    "pandas",
+    "plotly",
+    "streamlit_autorefresh",
+    "matplotlib",
+    "pytest"
+]
 
 [project.scripts]
 algorithm-analysis = "algorithm_analysis_tool.cli:main"

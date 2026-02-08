@@ -168,7 +168,10 @@ class ASTVisitor(ast.NodeTransformer):
                 targets=[target],
                 value=ast.Call(
                     func=ast.Name(id="count_assign", ctx=ast.Load()),
-                    args=[ast.Name(id=temp_name, ctx=ast.Load())],
+                    args=[
+                        ast.Name(id="COUNTERS", ctx=ast.Load()),
+                        ast.Name(id=temp_name, ctx=ast.Load())
+                    ],
                     keywords=[]
                 )
             )
