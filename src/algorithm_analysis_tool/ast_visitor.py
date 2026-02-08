@@ -350,7 +350,7 @@ class ASTVisitor(ast.NodeTransformer):
 
 
 def run_code(src: str, counters):
-    reset_counters(counters)
+    counters = reset_counters(counters)
 
     tree = ast.parse(src)
 
