@@ -3,10 +3,23 @@ import operator
 
 from .ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
-    count_compare, count_index, COUNTERS, count_loop_iteration
+    count_compare, count_index, count_loop_iteration, reset_counters
 )
 
+counters = {
+    "assignments": 0,
+    "indexing": 0,
+    "function_calls": 0,
+    "returns": 0,
+    "comparisons": 0,
+    "arithmetic": 0,
+    "loop_nodes": 0,
+    "loop_iterations": 0
+    }
+
+
 def main():
+    counters = reset_counters(counters)
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()
@@ -35,7 +48,7 @@ def main():
         sys.exit(1)
 
     exec_globals = {
-        "COUNTERS": COUNTERS,
+        "COUNTERS": counters,
         "count_arith": count_arith,
         "count_assign": count_assign,
         "count_call": count_call,
@@ -47,7 +60,7 @@ def main():
 
     exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
 
-    visitor = ASTVisitor()
+    visitor = ASTVisitor(counters)
     instrumented_node = visitor.visit(function_map[choice])
     ast.fix_missing_locations(instrumented_node)
 
@@ -69,12 +82,12 @@ def main():
     # arr = [2, 5, 3, 1, 4]
 
     # Call the selected function dynamically
-    result = exec_globals[choice](arr)
+    exec_globals[choice](arr)
     # print("Result:", result)
 
     # Print analysis counters
     print("\nAnalysis Results:")
-    for key, value in COUNTERS.items():
+    for key, value in counters.items():
         print(f"{key}: {value}")
 
 
