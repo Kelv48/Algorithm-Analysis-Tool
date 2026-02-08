@@ -69,7 +69,7 @@ def main():
     # arr = [2, 5, 3, 1, 4]
 
     # Call the selected function dynamically
-    result = exec_globals[choice](arr)
+    exec_globals[choice](arr)
     # print("Result:", result)
 
     # Print analysis counters
