@@ -69,8 +69,8 @@ def main():
 
     # Prepare globals for execution
 
-    # Execute function definition
-    exec(code_obj, exec_globals)
+    result = exec_globals[choice](arr)
+    print("Result:", result)
 
     # Example input array for algorithms that need it
     from random import randint
