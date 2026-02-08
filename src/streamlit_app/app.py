@@ -38,8 +38,9 @@ st.session_state.setdefault("status", "")
 st.session_state.setdefault("executor", ThreadPoolExecutor(max_workers=1))
 st.session_state.setdefault("future", None)
 st.session_state.setdefault("is_running", False)
+st.session_state.setdefault("use_slider", True)
 
-def run_ast_analysis(func_name, var):
+def run_ast_analysis(func_name, n_range, arr_length):
     counters = {
     "assignments": 0,
     "indexing": 0,
@@ -78,8 +79,7 @@ def run_ast_analysis(func_name, var):
                        filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    n = int(var)
-    arr = [randint(1, n) for _ in range(n)]
+    arr = [randint(1, n_range) for _ in range(arr_length)]
     exec_globals[func_name](arr)
 
     return counters
@@ -97,14 +97,51 @@ disabled = st.session_state.get("is_running", False)
 selected_function = st.selectbox(
     "Select function to analyze:", functions, disabled=disabled, key="selected_function"
 )
-var = st.text_input(
-    "Pick the range of values to cover", disabled=disabled, key="var_input"
-)
+
+input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input (Experimental may have poor performance on extreme values)"])
+col1, col2 = st.columns([1, 1])
+with col1:
+
+    if input_type == "Slider (1–10000)":
+        n = st.slider(
+            "Select integer range (1–10000)",
+            min_value=1,
+            max_value=10000,
+            value=st.session_state.get("slider_n", 100),
+            key="slider_n"
+        )
+    else:
+        n = st.number_input(
+            "Or enter range manually",
+            min_value=1,
+            value=st.session_state.get("free_input_n", 100),
+            key="free_input_n"
+        )
+
+with col2:
+
+    if input_type == "Slider (1–10000)":
+        arr = st.slider(
+            "Select array length (slider, 1–10000)",
+            min_value=1,
+            max_value=10000,
+            value=st.session_state.get("slider_n", 100),
+            key="slider_arr"
+        )
+    else:
+        arr = st.number_input(
+            "Or enter length manually",
+            min_value=1,
+            value=st.session_state.get("free_input_n", 100),
+            key="free_input_arr"
+        )
+
+
 
 if st.button("Run AST Analysis", disabled=st.session_state.future is not None):
     st.session_state.status = "Running analysis..."
     st.session_state.is_running = True
-    st.session_state.future = st.session_state.executor.submit(run_ast_analysis, selected_function, var)
+    st.session_state.future = st.session_state.executor.submit(run_ast_analysis, selected_function, n, arr)
     st.rerun()
 
 if st.session_state.get("is_running"):
