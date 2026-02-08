@@ -136,7 +136,7 @@ with col2:
             key="free_input_arr"
         )
 
-
+st.session_state["arr_length"] = arr
 
 if st.button("Run AST Analysis", disabled=st.session_state.future is not None):
     st.session_state.status = "Running analysis..."
