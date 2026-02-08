@@ -60,11 +60,17 @@ def main():
     exec(code_obj, exec_globals)
 
     # Example input array for algorithms that need it
-    arr = [2, 5, 3, 1, 4]
+    from random import randint
+    arr = []
+
+    for i in range(10000):
+        i = randint(1, 500)
+        arr.append(i)
+    # arr = [2, 5, 3, 1, 4]
 
     # Call the selected function dynamically
     result = exec_globals[choice](arr)
-    print("Result:", result)
+    # print("Result:", result)
 
     # Print analysis counters
     print("\nAnalysis Results:")

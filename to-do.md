@@ -152,3 +152,11 @@ What can be enterted into the tool that cant be coped with that we have no inten
 Given this basic machinery how useful will it be for a student
 
 - Test streamlit components for thurs
+
+- How things are being counted
+- The complexity on a range of inputs
+- Allow users to enter anything they want
+    Or to choose from a preselected list
+    list lenths
+    how they are generated
+    number of iterations per

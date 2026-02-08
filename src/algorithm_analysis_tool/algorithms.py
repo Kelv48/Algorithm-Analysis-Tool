@@ -46,3 +46,7 @@ def merge(left, right):
     merged.extend(right[j:])
 
     return merged
+
+"""
+Graph algorithms and other algorithms can be added here in the future.
+"""
