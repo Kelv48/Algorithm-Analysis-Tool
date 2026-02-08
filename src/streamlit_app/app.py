@@ -125,14 +125,14 @@ with col2:
             "Select array length (slider, 1–10000)",
             min_value=1,
             max_value=10000,
-            value=st.session_state.get("slider_n", 100),
+            value=st.session_state.get("slider_arr", 100),
             key="slider_arr"
         )
     else:
         arr = st.number_input(
             "Or enter length manually",
             min_value=1,
-            value=st.session_state.get("free_input_n", 100),
+            value=st.session_state.get("free_input_arr", 100),
             key="free_input_arr"
         )
 
