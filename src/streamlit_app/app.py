@@ -7,7 +7,6 @@ import pandas as pd
 import plotly.express as px
 from random import randint
 
-# Paths
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = ast_visitor_path / "algorithms.py"
@@ -28,13 +27,10 @@ st.session_state.setdefault("status", "")
 st.session_state.setdefault("executor", ThreadPoolExecutor(max_workers=1))
 st.session_state.setdefault("future", None)
 
-# Function to run AST analysis
 def run_ast_analysis(func_name):
-    # Reset global COUNTERS
     for key in COUNTERS:
         COUNTERS[key] = 0
 
-    # Parse source
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())
 
@@ -53,10 +49,8 @@ def run_ast_analysis(func_name):
         "operator": operator
     }
 
-    # Execute entire module
     exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
 
-    # Instrument and execute selected function
     visitor = ASTVisitor()
     instrumented_node = visitor.visit(function_map[func_name])
     ast.fix_missing_locations(instrumented_node)
@@ -64,27 +58,22 @@ def run_ast_analysis(func_name):
                        filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    # Run function with example input
     arr = [randint(1, 10) for _ in range(10)]
     exec_globals[func_name](arr)
 
     return COUNTERS.copy()
 
-# Load functions from algorithms.py
 with open(algo_path, "r") as f:
     tree = ast.parse(f.read())
 functions = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
 
-# UI: function selection & run
 selected_function = st.selectbox("Select function to analyze:", functions)
 
 if st.button("Run AST Analysis"):
     st.session_state.status = "Running analysis..."
     st.session_state.future = st.session_state.executor.submit(run_ast_analysis, selected_function)
 
-# Poll the future for completion
 if st.session_state.future:
-    # Show spinner while future is running
     with st.spinner("Running AST analysis... ⏳"):
         if st.session_state.future.done():
             result = st.session_state.future.result()
@@ -95,17 +84,14 @@ if st.session_state.future:
                 st.session_state.status = f"Function '{selected_function}' not found"
             st.session_state.future = None  # clear future
         else:
-            # Poll periodically while the thread is running
             import time
             time.sleep(2)
             st.rerun()
 
 
-# Show status
 if st.session_state.status:
     st.info(st.session_state.status)
 
-# Operation selection
 selected_operations = st.multiselect(
     "Select operations to include:",
     options=list(COUNTERS.keys()),
