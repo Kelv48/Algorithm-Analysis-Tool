@@ -188,9 +188,13 @@ def display_charts(counters_dict):
     fig2 = px.pie(df, names="Operation", values="Count", title="Operation Distribution (%)")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Per-element (normalize by total count instead of a hard-coded constant)
-    total_count = df["Count"].sum()
-    df["Per Element"] = df["Count"] / total_count if total_count else 0
+    # Per-element metrics: divide by the actual array length used for this run when available
+    arr_length = st.session_state.get("arr_length")
+    if arr_length:
+        df["Per Element"] = df["Count"] / arr_length
+    else:
+        total_count = df["Count"].sum()
+        df["Per Element"] = df["Count"] / total_count if total_count else 0
     st.subheader("Raw Data")
     st.dataframe(df)
 
