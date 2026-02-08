@@ -157,6 +157,6 @@ All items listed in this section are **under review or pending implementation** 
 - Characterize computational complexity across a representative range of input sizes and patterns.
 - Decide whether users can enter arbitrary code/inputs or must choose from a curated, preselected set of examples.
 - Define input configuration parameters, including:
-    - Typical list lengths to support
-    - How input data is generated
-    - The number of iterations per experiment
+    - Determine typical list lengths to support.
+    - Specify how input data is generated.
+    - Decide on the number of iterations to run per experiment.
