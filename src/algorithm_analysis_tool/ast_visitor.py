@@ -14,9 +14,8 @@ COUNTERS = {
     "loop_iterations": 0
 }
 
-def reset_counters():
-    global COUNTERS
-    COUNTERS = {
+def reset_counters(counters):
+    counters = {
         "assignments": 0,
         "indexing": 0,
         "function_calls": 0,
@@ -26,17 +25,17 @@ def reset_counters():
         "loop_nodes": 0,
         "loop_iterations": 0
     }
-    return COUNTERS
+    return counters
 
-def count_loop_iteration():
+def count_loop_iteration(counters):
     """
         Counts the loop iterations being performed \n.
         Increments the global loop iteration counter by 1.
     """
-    COUNTERS["loop_iterations"] += 1
+    counters["loop_iterations"] += 1
 
 
-def count_arith(a, op, b):
+def count_arith(counters, a, op, b):
     """
         Counts the arithmetic operations being performed \n.
         Increments the global arithmetic counter by 1.
@@ -49,10 +48,10 @@ def count_arith(a, op, b):
         Returns:
             The result of applying the operation to (a, b)
     """
-    COUNTERS["arithmetic"] += 1
+    counters["arithmetic"] += 1
     return op(a, b)
 
-def count_assign(value):
+def count_assign(counters, value):
     """
         Counts the assignment operations being performed \n.
         Increments the global assignment counter by 1.
@@ -63,10 +62,10 @@ def count_assign(value):
         Returns:
             The value being assigned.
     """
-    COUNTERS["assignments"] += 1
+    counters["assignments"] += 1
     return value
 
-def count_index(obj, key):
+def count_index(counters, obj, key):
     """
         Counts the indexing operations being performed \n.
         Increments the global indexing counter by 1.
@@ -78,10 +77,10 @@ def count_index(obj, key):
         Returns:
             The value at the specified index/key.
     """
-    COUNTERS["indexing"] += 1
+    counters["indexing"] += 1
     return obj[key]
 
-def count_call(fn, *args, **kwargs):
+def count_call(counters, fn, *args, **kwargs):
     """
         Counts the function call operations being performed \n.
         Increments the global function call counter by 1.
@@ -94,11 +93,11 @@ def count_call(fn, *args, **kwargs):
         Returns:
             The result of the function call.
     """
-    COUNTERS["function_calls"] += 1
-    COUNTERS["returns"] += 1
+    counters["function_calls"] += 1
+    counters["returns"] += 1
     return fn(*args, **kwargs)
 
-def count_compare(a, op, b):
+def count_compare(counters, a, op, b):
     """
         Counts the comparison operations being performed \n.
         Increments the global comparison counter by 1.
@@ -111,7 +110,7 @@ def count_compare(a, op, b):
         Returns:
             The result of the comparison.
     """
-    COUNTERS["comparisons"] += 1
+    counters["comparisons"] += 1
     return op(a, b)
 
 class ASTVisitor(ast.NodeTransformer):
@@ -119,11 +118,12 @@ class ASTVisitor(ast.NodeTransformer):
     NodeTransformer will auto call any visit_* methods we create. \n
     When we call visit(node) the transformer checks the node type and looks for a matching method
     """  
-    def __init__(self):
+    def __init__(self, counters):
         """
             Initializes the ASTVisitor with a temporary variable counter.
             and sets up the base class.
         """
+        self.counters = counters
         self.temp_counter = 0
         super().__init__()
 
@@ -144,7 +144,10 @@ class ASTVisitor(ast.NodeTransformer):
         if len(node.targets) == 1:
             node.value = ast.Call(
                 func=ast.Name(id="count_assign", ctx=ast.Load()),
-                args=[node.value],
+                args=[
+                    ast.Name(id="COUNTERS", ctx=ast.Load()),
+                    node.value
+                ],
                 keywords=[]
             )
             return node
@@ -185,8 +188,12 @@ class ASTVisitor(ast.NodeTransformer):
             return node
         
         return ast.Call(
-            func=ast.Name(id="count_index", ctx=ast.Load()), # Wrap indexing with count_index
-            args=[node.value, node.slice],
+            func=ast.Name(id="count_index", ctx=ast.Load()),
+            args=[
+                ast.Name(id="COUNTERS", ctx=ast.Load()),
+                node.value,
+                node.slice
+            ],
             keywords=[]
         )
 
@@ -197,9 +204,13 @@ class ASTVisitor(ast.NodeTransformer):
         node = self.generic_visit(node)
         return ast.Call(
             func=ast.Name(id="count_call", ctx=ast.Load()),
-            args=[node.func] + node.args,
+            args=[
+                ast.Name(id="COUNTERS", ctx=ast.Load()),
+                node.func,
+                *node.args
+            ],
             keywords=[]
-        ) # Count calls/return
+        )
 
     def visit_Compare(self, node):
         """
@@ -232,6 +243,7 @@ class ASTVisitor(ast.NodeTransformer):
             call = ast.Call(
                 func=ast.Name(id="count_compare", ctx=ast.Load()),
                 args=[
+                    ast.Name(id="COUNTERS", ctx=ast.Load()),
                     left,
                     ast.Attribute(
                         value=ast.Name(id="operator", ctx=ast.Load()),
@@ -282,6 +294,7 @@ class ASTVisitor(ast.NodeTransformer):
         return ast.Call(
             func=ast.Name(id="count_arith", ctx=ast.Load()),
             args=[
+                ast.Name(id="COUNTERS", ctx=ast.Load()),
                 node.left,
                 ast.Attribute(
                     value=ast.Name(id="operator", ctx=ast.Load()),
@@ -297,7 +310,7 @@ class ASTVisitor(ast.NodeTransformer):
         """
             Visits for loop nodes to wrap them with a call to count_loop_iteration and count_loop.
         """
-        COUNTERS["loop_nodes"] += 1
+        self.counters["loop_nodes"] += 1
 
         # Visit children first (generic_visit)
         node = self.generic_visit(node)
@@ -306,7 +319,7 @@ class ASTVisitor(ast.NodeTransformer):
         counter_call = ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="count_loop_iteration", ctx=ast.Load()),
-                args=[],
+                args=[ast.Name(id="COUNTERS", ctx=ast.Load())],
                 keywords=[]
             )
         )
@@ -318,13 +331,13 @@ class ASTVisitor(ast.NodeTransformer):
         """    
             Visits while loop nodes to wrap them with a call to count_loop_iteration and count_loop.
         """
-        COUNTERS["loop_nodes"] += 1
+        self.counters["loop_nodes"] += 1
         node = self.generic_visit(node)
 
         counter_call = ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="count_loop_iteration", ctx=ast.Load()),
-                args=[],
+                args=[ast.Name(id="COUNTERS", ctx=ast.Load())],
                 keywords=[]
             )
         )
@@ -333,12 +346,12 @@ class ASTVisitor(ast.NodeTransformer):
 
 
 
-def run_code(src: str):
-    reset_counters()
+def run_code(src: str, counters):
+    reset_counters(counters)
 
     tree = ast.parse(src)
 
-    transformer = ASTVisitor()
+    transformer = ASTVisitor(counters)
     tree = transformer.visit(tree)
     ast.fix_missing_locations(tree)
 
@@ -350,9 +363,9 @@ def run_code(src: str):
         "count_arith": count_arith,
         "count_loop_iteration": count_loop_iteration,
         "operator": operator,
-        "COUNTERS": COUNTERS,
+        "COUNTERS": counters,
     }
 
     exec(compile(tree, "<instrumented>", "exec"), env)
 
-    return COUNTERS.copy()
+    return counters

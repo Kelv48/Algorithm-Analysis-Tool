@@ -1,6 +1,7 @@
 import pathlib
 import ast, sys, operator
 from concurrent.futures import ThreadPoolExecutor
+from streamlit_autorefresh import st_autorefresh
 
 import streamlit as st
 import pandas as pd
@@ -9,27 +10,46 @@ from random import randint
 
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
-algo_path = ast_visitor_path / "algorithms.py"
+algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 sys.path.insert(0, str(ast_visitor_path))
 
 from algorithm_analysis_tool.ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
-    count_compare, count_index, COUNTERS, count_loop_iteration
+    count_compare, count_index, count_loop_iteration
 )
 
 # Streamlit page config
 st.set_page_config(page_title="Operation Counter", page_icon="📊", layout="wide")
 st.title("Algorithm Operation Analysis")
+counters = {
+    "assignments": 0,
+    "indexing": 0,
+    "function_calls": 0,
+    "returns": 0,
+    "comparisons": 0,
+    "arithmetic": 0,
+    "loop_nodes": 0,
+    "loop_iterations": 0
+    }
 
 # Session state defaults
-st.session_state.setdefault("counters", COUNTERS.copy())
+st.session_state.setdefault("counters", counters)
 st.session_state.setdefault("status", "")
 st.session_state.setdefault("executor", ThreadPoolExecutor(max_workers=1))
 st.session_state.setdefault("future", None)
+st.session_state.setdefault("is_running", False)
 
-def run_ast_analysis(func_name):
-    for key in COUNTERS:
-        COUNTERS[key] = 0
+def run_ast_analysis(func_name, var):
+    counters = {
+    "assignments": 0,
+    "indexing": 0,
+    "function_calls": 0,
+    "returns": 0,
+    "comparisons": 0,
+    "arithmetic": 0,
+    "loop_nodes": 0,
+    "loop_iterations": 0
+    }
 
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())
@@ -39,7 +59,7 @@ def run_ast_analysis(func_name):
         return None
 
     exec_globals = {
-        "COUNTERS": COUNTERS,
+        "COUNTERS": counters,
         "count_arith": count_arith,
         "count_assign": count_assign,
         "count_call": count_call,
@@ -51,51 +71,67 @@ def run_ast_analysis(func_name):
 
     exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
 
-    visitor = ASTVisitor()
+    visitor = ASTVisitor(counters)
     instrumented_node = visitor.visit(function_map[func_name])
     ast.fix_missing_locations(instrumented_node)
     code_obj = compile(ast.Module(body=[instrumented_node], type_ignores=[]),
                        filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    arr = [randint(1, 10) for _ in range(10)]
+    n = int(var)
+    arr = [randint(1, n) for _ in range(n)]
     exec_globals[func_name](arr)
 
-    return COUNTERS.copy()
+    return counters
 
-with open(algo_path, "r") as f:
-    tree = ast.parse(f.read())
+@st.cache_resource
+def load_ast(algo_path):
+    with open(algo_path, "r") as f:
+        return ast.parse(f.read())
+    
+tree = load_ast(algo_path)
 functions = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
 
-selected_function = st.selectbox("Select function to analyze:", functions)
+disabled = st.session_state.get("is_running", False)
 
-if st.button("Run AST Analysis"):
+selected_function = st.selectbox(
+    "Select function to analyze:", functions, disabled=disabled, key="selected_function"
+)
+var = st.text_input(
+    "Pick the range of values to cover", disabled=disabled, key="var_input"
+)
+
+if st.button("Run AST Analysis", disabled=st.session_state.future is not None):
     st.session_state.status = "Running analysis..."
-    st.session_state.future = st.session_state.executor.submit(run_ast_analysis, selected_function)
+    st.session_state.is_running = True
+    st.session_state.future = st.session_state.executor.submit(run_ast_analysis, selected_function, var)
+    st.rerun()
+
+if st.session_state.get("is_running"):
+    with st.spinner("Analyzing AST and executing instrumented code…"):
+        st.caption("Parsing → instrumenting → executing")
 
 if st.session_state.future:
-    with st.spinner("Running AST analysis... ⏳"):
-        if st.session_state.future.done():
-            result = st.session_state.future.result()
-            if result:
-                st.session_state.counters = result
-                st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
-            else:
-                st.session_state.status = f"Function '{selected_function}' not found"
-            st.session_state.future = None  # clear future
+    st_autorefresh(interval=2000, key="poll_ast")
+    if st.session_state.future.done():
+        result = st.session_state.future.result()
+        if result:
+            st.session_state.counters = result
+            st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
         else:
-            import time
-            time.sleep(2)
-            st.rerun()
+            st.session_state.status = f"Function '{selected_function}' not found"
+        st.session_state.future = None
+        st.session_state.is_running = False
 
 
 if st.session_state.status:
     st.info(st.session_state.status)
 
+counters = st.session_state.counters
 selected_operations = st.multiselect(
     "Select operations to include:",
-    options=list(COUNTERS.keys()),
-    default=list(COUNTERS.keys())
+    options=list(counters.keys()),
+    default=list(counters.keys())
 )
 
 
