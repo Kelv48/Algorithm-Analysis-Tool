@@ -1,6 +1,6 @@
 import pathlib
 import ast, sys
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from streamlit_autorefresh import st_autorefresh
 
 import streamlit as st
@@ -86,7 +86,7 @@ ALGO_GROUPS = {
 # Session state defaults
 st.session_state.setdefault("counters", counters)
 st.session_state.setdefault("status", "")
-st.session_state.setdefault("executor", ThreadPoolExecutor(max_workers=1))
+st.session_state.setdefault("executor", ProcessPoolExecutor(max_workers=1))
 st.session_state.setdefault("future", None)
 st.session_state.setdefault("is_running", False)
 st.session_state.setdefault("use_slider", True)
@@ -106,7 +106,7 @@ disabled = st.session_state.get("is_running", False)
 # Tab 1: Single Run
 # ---------------------------
 with tab1:
-    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
+    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()), disabled=disabled)
     selected_function = st.selectbox(
         "Algorithm", ALGO_GROUPS[group], disabled=disabled, key="selected_function"
     )
@@ -188,6 +188,19 @@ with tab1:
         st.session_state.is_running = True
         st.session_state.future = st.session_state.executor.submit(run_ast_analysis, *run_args)
         st.rerun()
+
+    if st.button("Cancel Run", disabled=not st.session_state.is_running):
+        st.session_state.status = "Cancelling..."
+        if st.session_state.future:
+            st.session_state.future.cancel()
+            try:
+                st.session_state.future._process.terminate()
+            except Exception:
+                pass
+        st.session_state.is_running = False
+        st.session_state.future = None
+        st.session_state.executor.shutdown(wait=False)
+        st.session_state.executor = ProcessPoolExecutor(max_workers=1)
 
     if st.session_state.get("is_running"):
         with st.spinner("Analyzing AST and executing instrumented code…"):
