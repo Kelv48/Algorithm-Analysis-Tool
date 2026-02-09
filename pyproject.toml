@@ -18,7 +18,8 @@ dependencies = [
     "plotly",
     "streamlit_autorefresh",
     "matplotlib",
-    "pytest"
+    "pytest",
+    "joblib"
 ]
 
 [project.scripts]

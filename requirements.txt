@@ -4,3 +4,4 @@ pandas
 plotly
 pytest
 streamlit_autorefresh
+joblib

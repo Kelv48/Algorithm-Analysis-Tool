@@ -6,7 +6,7 @@ from streamlit_autorefresh import st_autorefresh
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from helpers import run_ast_analysis
+from helpers import run_ast_analysis, save_cache, load_cache, drop_cache
 
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
@@ -59,13 +59,35 @@ selected_function = st.selectbox(
     "Algorithm", ALGO_GROUPS[group], disabled=disabled, key="selected_function"
 )
 
+user_has_run = st.session_state.get("has_run", False)
+cached = None
+cache_key = selected_function
+if not user_has_run:
+    cached = load_cache(cache_key)
+    if cached is not None:
+        st.session_state.counters = cached
+        st.info("Showing cached results")
+
+
 if group in {"Sorting", "Searching", "Scheduling"}:
+    # Define label/tooltips based on the group
+    if group == "Sorting":
+        n_label = "Select maximum integer value in the array"
+        arr_label = "Select array length"
+    elif group == "Searching":
+        n_label = "Select maximum integer value in the array (Target will be auto generated within this)"
+        arr_label = "Select array length"
+    elif group == "Scheduling":
+        n_label = "Select maximum time value for activities"
+        arr_label = "Select number of activities"
+
     input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input (Experimental may have poor performance on extreme values)"])
     col1, col2 = st.columns([1, 1])
+
     with col1:
         if input_type == "Slider (1–10000)":
             n = st.slider(
-                "Select integer range (1–10000)",
+                n_label,
                 min_value=1,
                 max_value=10000,
                 value=st.session_state.get("slider_n", 100),
@@ -74,7 +96,7 @@ if group in {"Sorting", "Searching", "Scheduling"}:
             )
         else:
             n = st.number_input(
-                "Or enter range manually",
+                n_label,
                 min_value=1,
                 value=st.session_state.get("free_input_n", 100),
                 key="free_input_n",
@@ -84,7 +106,7 @@ if group in {"Sorting", "Searching", "Scheduling"}:
     with col2:
         if input_type == "Slider (1–10000)":
             arr = st.slider(
-                "Select array length (slider, 1–10000)",
+                arr_label,
                 min_value=1,
                 max_value=10000,
                 value=st.session_state.get("slider_arr", 100),
@@ -93,7 +115,7 @@ if group in {"Sorting", "Searching", "Scheduling"}:
             )
         else:
             arr = st.number_input(
-                "Or enter length manually",
+                arr_label,
                 min_value=1,
                 value=st.session_state.get("free_input_arr", 100),
                 key="free_input_arr",
@@ -109,6 +131,8 @@ else:
     
 
 if st.button("Run AST Analysis", disabled=st.session_state.future is not None):
+    drop_cache(cache_key)
+    st.session_state.has_run = True
     st.session_state.status = "Running analysis..."
     st.session_state.is_running = True
     st.session_state.future = st.session_state.executor.submit(run_ast_analysis, *run_args)
@@ -125,6 +149,7 @@ if st.session_state.future:
         if result:
             st.session_state.counters = result
             st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
+            save_cache(cache_key, result)
         else:
             st.session_state.status = f"Function '{selected_function}' not found"
         st.session_state.future = None

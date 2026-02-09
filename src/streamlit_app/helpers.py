@@ -1,5 +1,7 @@
 import pathlib, ast, operator
 from random import randint
+import pathlib
+import joblib
 
 from algorithm_analysis_tool.ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
@@ -97,3 +99,24 @@ def run_ast_analysis(func_name, *args, **kwargs):
     exec_globals[func_name](*final_args, **kwargs)
 
     return counters
+
+CACHE_DIR = pathlib.Path("cache")
+CACHE_DIR.mkdir(exist_ok=True)
+
+def save_cache(key, data):
+    """Save Streamlit results to disk."""
+    path = CACHE_DIR / f"{key}.joblib"
+    joblib.dump(data, path)
+
+def load_cache(key):
+    """Load Streamlit results from disk if they exist."""
+    path = CACHE_DIR / f"{key}.joblib"
+    if path.exists():
+        return joblib.load(path)
+    return None
+
+def drop_cache(key):
+    """Remove cached data if it exists."""
+    path = CACHE_DIR / f"{key}.joblib"
+    if path.exists():
+        path.unlink()
