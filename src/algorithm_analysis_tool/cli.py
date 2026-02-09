@@ -1,12 +1,15 @@
 import ast, sys, argparse
 import operator
 
+from .helpers import resolve_helpers
+from .function_visitor import FunctionDependencyVisitor
 from .ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
     count_compare, count_index, count_loop_iteration, reset_counters
 )
 
-counters = {
+def main():
+    counters = {
     "assignments": 0,
     "indexing": 0,
     "function_calls": 0,
@@ -16,10 +19,6 @@ counters = {
     "loop_nodes": 0,
     "loop_iterations": 0
     }
-
-
-def main():
-    counters = reset_counters(counters)
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()
@@ -42,6 +41,8 @@ def main():
         print("-", name)
 
     choice = input("Which function do you want to run? ")
+    needed_functions = resolve_helpers(choice, function_map)
+
 
     if choice not in function_map:
         print("Invalid choice")
@@ -58,32 +59,27 @@ def main():
         "operator": operator
     }
 
-    exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
+    selected_nodes = [
+        function_map[name]
+        for name in function_map
+        if name in needed_functions
+    ]
+
+    module_ast = ast.Module(body=selected_nodes, type_ignores=[])
 
     visitor = ASTVisitor(counters)
-    instrumented_node = visitor.visit(function_map[choice])
-    ast.fix_missing_locations(instrumented_node)
+    module_ast = visitor.visit(module_ast)
+    ast.fix_missing_locations(module_ast)
 
-    module_ast = ast.Module(body=[instrumented_node], type_ignores=[])
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
+    exec(code_obj, exec_globals)
 
     # Prepare globals for execution
+    arr = [2, 5, 3, 1, 4]
 
     result = exec_globals[choice](arr)
     print("Result:", result)
 
-    # Example input array for algorithms that need it
-    from random import randint
-    arr = []
-
-    for i in range(10000):
-        i = randint(1, 500)
-        arr.append(i)
-    # arr = [2, 5, 3, 1, 4]
-
-    # Call the selected function dynamically
-    exec_globals[choice](arr)
-    # print("Result:", result)
 
     # Print analysis counters
     print("\nAnalysis Results:")

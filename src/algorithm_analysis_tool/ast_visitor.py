@@ -201,10 +201,15 @@ class ASTVisitor(ast.NodeTransformer):
         )
 
     def visit_Call(self, node):
-        """
-            Visits function call nodes to wrap them with a call to count_call.
-        """
         node = self.generic_visit(node)
+
+        if isinstance(node.func, ast.Name):
+            name = node.func.id
+            if name.startswith("count_"):
+                return node
+            if name in __builtins__:
+                return node
+
         return ast.Call(
             func=ast.Name(id="count_call", ctx=ast.Load()),
             args=[
@@ -214,7 +219,7 @@ class ASTVisitor(ast.NodeTransformer):
             ],
             keywords=[]
         )
-
+    
     def visit_Compare(self, node):
         """
             Visits comparison nodes to wrap them with a call to count_compare.
