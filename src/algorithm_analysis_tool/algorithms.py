@@ -101,24 +101,6 @@ def bfs(graph, start):
                 queue.append(neighbor)
     return visited
 
-
-# Needs to be provided with n integers
-def fib(n):
-    if n <= 1:
-        return n
-    return fib(n - 1) + fib(n - 2)
-
-
-def fib_dp(n):
-    if n <= 1:
-        return n
-    dp = [0] * (n + 1)
-    dp[1] = 1
-    for i in range(2, n + 1):
-        dp[i] = dp[i - 1] + dp[i - 2]
-    return dp[n]
-
-
 # Scheduling
 def activity_selection(activities):
     activities.sort(key=lambda x: x[1])
@@ -127,10 +109,3 @@ def activity_selection(activities):
         if activities[i][0] >= selected[-1][1]:
             selected.append(activities[i])
     return selected
-
-
-# GCD
-def greatest_common_divisor(a, b):
-    while b != 0:
-        a, b = b, a % b
-    return a

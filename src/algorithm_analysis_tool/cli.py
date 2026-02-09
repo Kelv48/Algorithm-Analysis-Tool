@@ -1,7 +1,7 @@
 import ast, sys, argparse
 import operator
 
-from .helpers import resolve_helpers
+from .ast_helpers import resolve_helpers
 from .ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
     count_compare, count_index, count_loop_iteration

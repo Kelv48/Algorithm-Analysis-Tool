@@ -14,6 +14,9 @@ COUNTERS = {
     "loop_iterations": 0
 }
 
+def not_in(a, b):
+    return a not in b
+
 def reset_counters(counters):
     counters = {
         "assignments": 0,
@@ -236,7 +239,7 @@ class ASTVisitor(ast.NodeTransformer):
             ast.Is: "is_",
             ast.IsNot: "is_not",
             ast.In: "contains",
-            ast.NotIn: "not_"
+            ast.NotIn: "not_in"
         }
 
         left = node.left
@@ -247,17 +250,21 @@ class ASTVisitor(ast.NodeTransformer):
 
             if not op_name:
                 return node
-
+            if op_name == "not_in":
+                op_node = ast.Name(id="not_in", ctx=ast.Load())
+            else:
+                op_node = ast.Attribute(
+                value=ast.Name(id="operator", ctx=ast.Load()),
+                attr=op_name,
+                ctx=ast.Load()
+            )
+                
             call = ast.Call(
                 func=ast.Name(id="count_compare", ctx=ast.Load()),
                 args=[
                     ast.Name(id="COUNTERS", ctx=ast.Load()),
                     left,
-                    ast.Attribute(
-                        value=ast.Name(id="operator", ctx=ast.Load()),
-                        attr=op_name,
-                        ctx=ast.Load()
-                    ),
+                    op_node,
                     right
                 ],
                 keywords=[]

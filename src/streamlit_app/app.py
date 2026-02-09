@@ -1,26 +1,22 @@
 import pathlib
-import ast, sys, operator
+import ast, sys
 from concurrent.futures import ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from random import randint
+from helpers import run_ast_analysis
 
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 sys.path.insert(0, str(ast_visitor_path))
 
-from algorithm_analysis_tool.ast_visitor import (
-    ASTVisitor, count_arith, count_assign, count_call,
-    count_compare, count_index, count_loop_iteration
-)
-
 # Streamlit page config
 st.set_page_config(page_title="Operation Counter", page_icon="📊", layout="wide")
 st.title("Algorithm Operation Analysis")
+
 counters = {
     "assignments": 0,
     "indexing": 0,
@@ -32,6 +28,13 @@ counters = {
     "loop_iterations": 0
     }
 
+ALGO_GROUPS = {
+    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort"],
+    "Searching": ["linear_search", "binary_search"],
+    "Graph": ["dfs", "bfs"],
+    "Scheduling": ["activity_selection"],
+}
+
 # Session state defaults
 st.session_state.setdefault("counters", counters)
 st.session_state.setdefault("status", "")
@@ -40,49 +43,6 @@ st.session_state.setdefault("future", None)
 st.session_state.setdefault("is_running", False)
 st.session_state.setdefault("use_slider", True)
 
-def run_ast_analysis(func_name, n_range, arr_length):
-    counters = {
-    "assignments": 0,
-    "indexing": 0,
-    "function_calls": 0,
-    "returns": 0,
-    "comparisons": 0,
-    "arithmetic": 0,
-    "loop_nodes": 0,
-    "loop_iterations": 0
-    }
-
-    with open(algo_path, "r") as f:
-        tree = ast.parse(f.read())
-
-    function_map = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
-    if func_name not in function_map:
-        return None
-
-    exec_globals = {
-        "COUNTERS": counters,
-        "count_arith": count_arith,
-        "count_assign": count_assign,
-        "count_call": count_call,
-        "count_compare": count_compare,
-        "count_index": count_index,
-        "count_loop_iteration": count_loop_iteration,
-        "operator": operator
-    }
-
-    exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
-
-    visitor = ASTVisitor(counters)
-    instrumented_node = visitor.visit(function_map[func_name])
-    ast.fix_missing_locations(instrumented_node)
-    code_obj = compile(ast.Module(body=[instrumented_node], type_ignores=[]),
-                       filename="<ast>", mode="exec")
-    exec(code_obj, exec_globals)
-
-    arr = [randint(1, n_range) for _ in range(arr_length)]
-    exec_globals[func_name](arr)
-
-    return counters
 
 @st.cache_resource
 def load_ast(algo_path):
@@ -94,54 +54,64 @@ functions = [node.name for node in tree.body if isinstance(node, ast.FunctionDef
 
 disabled = st.session_state.get("is_running", False)
 
+group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
 selected_function = st.selectbox(
-    "Select function to analyze:", functions, disabled=disabled, key="selected_function"
+    "Algorithm", ALGO_GROUPS[group], disabled=disabled, key="selected_function"
 )
 
-input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input (Experimental may have poor performance on extreme values)"])
-col1, col2 = st.columns([1, 1])
-with col1:
+if group in {"Sorting", "Searching", "Scheduling"}:
+    input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input (Experimental may have poor performance on extreme values)"])
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if input_type == "Slider (1–10000)":
+            n = st.slider(
+                "Select integer range (1–10000)",
+                min_value=1,
+                max_value=10000,
+                value=st.session_state.get("slider_n", 100),
+                key="slider_n",
+                disabled=disabled
+            )
+        else:
+            n = st.number_input(
+                "Or enter range manually",
+                min_value=1,
+                value=st.session_state.get("free_input_n", 100),
+                key="free_input_n",
+                disabled=disabled
+            )
 
-    if input_type == "Slider (1–10000)":
-        n = st.slider(
-            "Select integer range (1–10000)",
-            min_value=1,
-            max_value=10000,
-            value=st.session_state.get("slider_n", 100),
-            key="slider_n"
-        )
-    else:
-        n = st.number_input(
-            "Or enter range manually",
-            min_value=1,
-            value=st.session_state.get("free_input_n", 100),
-            key="free_input_n"
-        )
+    with col2:
+        if input_type == "Slider (1–10000)":
+            arr = st.slider(
+                "Select array length (slider, 1–10000)",
+                min_value=1,
+                max_value=10000,
+                value=st.session_state.get("slider_arr", 100),
+                key="slider_arr",
+                disabled=disabled
+            )
+        else:
+            arr = st.number_input(
+                "Or enter length manually",
+                min_value=1,
+                value=st.session_state.get("free_input_arr", 100),
+                key="free_input_arr",
+                disabled=disabled
+            )
+    run_args = (selected_function, n, arr)
 
-with col2:
-
-    if input_type == "Slider (1–10000)":
-        arr = st.slider(
-            "Select array length (slider, 1–10000)",
-            min_value=1,
-            max_value=10000,
-            value=st.session_state.get("slider_arr", 100),
-            key="slider_arr"
-        )
-    else:
-        arr = st.number_input(
-            "Or enter length manually",
-            min_value=1,
-            value=st.session_state.get("free_input_arr", 100),
-            key="free_input_arr"
-        )
-
-st.session_state["arr_length"] = arr
+elif group == "Graph":
+    st.info("Using default test graph for DFS/BFS")
+    run_args = (selected_function,)
+else:
+    run_args = (selected_function,)
+    
 
 if st.button("Run AST Analysis", disabled=st.session_state.future is not None):
     st.session_state.status = "Running analysis..."
     st.session_state.is_running = True
-    st.session_state.future = st.session_state.executor.submit(run_ast_analysis, selected_function, n, arr)
+    st.session_state.future = st.session_state.executor.submit(run_ast_analysis, *run_args)
     st.rerun()
 
 if st.session_state.get("is_running"):
@@ -189,14 +159,14 @@ def display_charts(counters_dict):
     st.plotly_chart(fig2, use_container_width=True)
 
     # Per-element metrics: divide by the actual array length used for this run when available
-    arr_length = st.session_state.get("arr_length")
-    if arr_length:
-        df["Per Element"] = df["Count"] / arr_length
-    else:
-        total_count = df["Count"].sum()
-        df["Per Element"] = df["Count"] / total_count if total_count else 0
-    st.subheader("Raw Data")
-    st.dataframe(df)
+    # arr_length = st.session_state.get("arr_length")
+    # if arr_length:
+    #     df["Per Element"] = df["Count"] / arr_length
+    # else:
+    #     total_count = df["Count"].sum()
+    #     df["Per Element"] = df["Count"] / total_count if total_count else 0
+    # st.subheader("Raw Data")
+    # st.dataframe(df)
 
 # Display charts
 display_charts(st.session_state.counters)
