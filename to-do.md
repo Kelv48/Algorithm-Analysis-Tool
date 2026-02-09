@@ -8,3 +8,12 @@
     - Determine typical list lengths to support.
     - Specify how input data is generated.
     - Decide on the number of iterations to run per experiment.
+
+- Performance over multiple input sizes
+- Normalize Metrics
+- Operation Distribution
+- Algorithm Efficiency
+- Step by step execution (small inputs only)
+- Export/Report
+- Custom algorithm input (i.e allow users to enter their own code)
+- Historical / Session Summary (tracks all runs in the current session)
