@@ -10,29 +10,20 @@ def bubble_sort(arr):
             break
     return arr
 
+
 def merge_sort(arr):
-    # Base case: a list of 0 or 1 elements is already sorted
     if len(arr) <= 1:
         return arr
-
-    # Split the list into two halves
     mid = len(arr) // 2
     left_half = arr[:mid]
     right_half = arr[mid:]
-
-    # Recursively sort both halves
     left_sorted = merge_sort(left_half)
     right_sorted = merge_sort(right_half)
-
-    # Merge the sorted halves
     return merge(left_sorted, right_sorted)
-
 
 def merge(left, right):
     merged = []
     i = j = 0
-
-    # Merge elements from left and right in sorted order
     while i < len(left) and j < len(right):
         if left[i] <= right[j]:
             merged.append(left[i])
@@ -40,13 +31,106 @@ def merge(left, right):
         else:
             merged.append(right[j])
             j += 1
-
-    # Append any remaining elements
     merged.extend(left[i:])
     merged.extend(right[j:])
 
     return merged
 
-"""
-Graph algorithms and other algorithms can be added here in the future.
-"""
+
+def insertion_sort(arr):
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i - 1
+        while j >= 0 and arr[j] > key:
+            arr[j + 1] = arr[j]
+            j -= 1
+        arr[j + 1] = key
+    return arr
+
+
+def quicksort(arr):
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quicksort(left) + middle + quicksort(right)
+
+
+# Needs to be provided a target
+def linear_search(arr, target):
+    for i in range(len(arr)):
+        if arr[i] == target:
+            return i
+    return -1
+
+
+def binary_search(arr, target):
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+
+# Graph algorithm
+def dfs(graph, start, visited=None):
+    if visited is None:
+        visited = set()
+    visited.add(start)
+    for neighbor in graph[start]:
+        if neighbor not in visited:
+            dfs(graph, neighbor, visited)
+    return visited
+
+
+def bfs(graph, start):
+    visited = set([start])
+    queue = [start]
+    while queue:
+        node = queue.pop(0)
+        for neighbor in graph[node]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+    return visited
+
+
+# Needs to be provided with n integers
+def fib(n):
+    if n <= 1:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+
+def fib_dp(n):
+    if n <= 1:
+        return n
+    dp = [0] * (n + 1)
+    dp[1] = 1
+    for i in range(2, n + 1):
+        dp[i] = dp[i - 1] + dp[i - 2]
+    return dp[n]
+
+
+# Scheduling
+def activity_selection(activities):
+    activities.sort(key=lambda x: x[1])
+    selected = [activities[0]]
+    for i in range(1, len(activities)):
+        if activities[i][0] >= selected[-1][1]:
+            selected.append(activities[i])
+    return selected
+
+
+# GCD
+def greatest_common_divisor(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
