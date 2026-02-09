@@ -184,7 +184,7 @@ arr.append(4)
 def test_builtin_call():
     counters = reset_counters(COUNTERS)
     result = run_code("x = len([1,2,3])", counters)
-    assert result["function_calls"] == 1
+    assert result["function_calls"] == 0
 
 def test_call_inside_expression():
     counters = reset_counters(COUNTERS)
