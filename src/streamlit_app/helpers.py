@@ -12,7 +12,7 @@ root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 
-def run_ast_analysis(func_name, *args, **kwargs):
+def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, **kwargs):
     counters = {
         "assignments": 0,
         "indexing": 0,
@@ -62,7 +62,10 @@ def run_ast_analysis(func_name, *args, **kwargs):
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    final_args = item_generation(func_name, *args)
+    if input_generated:
+        final_args = input_arr
+    else:
+        final_args = item_generation(func_name, *args)
 
     exec_globals[func_name](*final_args, **kwargs)
 
