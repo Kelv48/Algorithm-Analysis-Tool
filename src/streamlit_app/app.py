@@ -63,7 +63,8 @@ def display_charts(counters_dict, arr_length=None, title_suffix=""):
 
 # Streamlit page config
 st.set_page_config(page_title="Operation Counter", page_icon="📊", layout="wide")
-st.title("Algorithm Operation Analysis")
+# st.sidebar.button("Go to Test Page", on_click=lambda: st.query_params(page="test_page"))
+# st.title("Algorithm Operation Analysis") 
 
 counters = {
     "assignments": 0,

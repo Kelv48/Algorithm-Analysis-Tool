@@ -1,13 +1,11 @@
-- Put algorithms in one place:
-- Fix any remaining issues with the ast code
-- Streamlit UI to trigger underlying code, use buttons and widgets
-- Streamlit runs on interaction but the button controls when execution happens
-    - Look into implementing caching for streamlit outputs
-- Real-time progress bar
-- Opearation category toggle
 - Download csv button
 - Input from file
 - User enters algorithms
 - Seed control
 - Allow repeat run averages
+- Real-time progress bar
+- Allow the user to keep an array across runs
 - Allow the streamlit app to be ran using docker
+
+- Figure out st.elements
+    - Implement it before thurs

@@ -3,6 +3,7 @@ from random import randint
 import pathlib
 import joblib
 
+from algorithm_analysis_tool.ast_helpers import resolve_helpers
 from algorithm_analysis_tool.ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
     count_compare, count_index, count_loop_iteration, not_in
@@ -44,57 +45,24 @@ def run_ast_analysis(func_name, *args, **kwargs):
         "not_in": not_in
     }
 
-    # Execute original code to define functions
-    exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
+    needed_functions = resolve_helpers(func_name, function_map)
+    
+    selected_nodes = [
+        function_map[name]
+        for name in function_map
+        if name in needed_functions
+    ]
+    
+    module_ast = ast.Module(body=selected_nodes, type_ignores=[])
 
-    # Instrument the selected function
     visitor = ASTVisitor(counters)
-    instrumented_node = visitor.visit(function_map[func_name])
-    ast.fix_missing_locations(instrumented_node)
-    code_obj = compile(ast.Module(body=[instrumented_node], type_ignores=[]),
-                       filename="<ast>", mode="exec")
+    module_ast = visitor.visit(module_ast)
+    ast.fix_missing_locations(module_ast)
+
+    code_obj = compile(module_ast, filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
-    search_algos = {"linear_search", "binary_search"}
-    graph_algos = {"dfs", "bfs"}
-    activity_algos = {"activity_selection"}
-
-    if func_name in sorting_algos:
-        if len(args) != 2:
-            raise ValueError(f"{func_name} expects two arguments: max value and array length")
-        n_range, arr_length = args
-        arr = [randint(1, n_range) for _ in range(arr_length)]
-        final_args = [arr]
-    
-    elif func_name in search_algos:
-        if len(args) != 2:
-            raise ValueError(f"{func_name} expects two arguments: max value and array length")
-        n_range, arr_length = args
-        arr = [randint(1, n_range) for _ in range(arr_length)]
-        target = randint(1, n_range)
-        final_args = [arr, target]
-
-    elif func_name in graph_algos:
-        graph = {
-            'A': ['B','C'],
-            'B': ['D','E'],
-            'C': ['F'],
-            'D': [],
-            'E': ['F'],
-            'F': []
-        }
-        start_node = 'A'
-        final_args = [graph, start_node]
-
-    elif func_name in activity_algos:
-        if len(args) != 2:
-            raise ValueError(f"{func_name} expects two arguments: max value and number of activities")
-        n_range, arr_length = args
-        activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
-        final_args = [activities]
-    else:
-        final_args = list(args)
+    final_args = item_generation(func_name, *args)
 
     exec_globals[func_name](*final_args, **kwargs)
 
@@ -120,3 +88,45 @@ def drop_cache(key):
     path = CACHE_DIR / f"{key}.joblib"
     if path.exists():
         path.unlink()
+
+def item_generation(func_name, *args):
+    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
+    search_algos = {"linear_search", "binary_search"}
+    graph_algos = {"dfs", "bfs"}
+    activity_algos = {"activity_selection"}
+
+    if func_name in sorting_algos:
+        if len(args) != 2:
+            raise ValueError(f"{func_name} expects two arguments: max value and array length")
+        n_range, arr_length = args
+        arr = [randint(1, n_range) for _ in range(arr_length)]
+        return [arr]
+    
+    elif func_name in search_algos:
+        if len(args) != 2:
+            raise ValueError(f"{func_name} expects two arguments: max value and array length")
+        n_range, arr_length = args
+        arr = [randint(1, n_range) for _ in range(arr_length)]
+        target = randint(1, n_range)
+        return [arr, target]
+
+    elif func_name in graph_algos:
+        graph = {
+            'A': ['B','C'],
+            'B': ['D','E'],
+            'C': ['F'],
+            'D': [],
+            'E': ['F'],
+            'F': []
+        }
+        start_node = 'A'
+        return [graph, start_node]
+
+    elif func_name in activity_algos:
+        if len(args) != 2:
+            raise ValueError(f"{func_name} expects two arguments: max value and number of activities")
+        n_range, arr_length = args
+        activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
+        return [activities]
+    else:
+        return list(args)
