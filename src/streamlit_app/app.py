@@ -6,7 +6,7 @@ from streamlit_autorefresh import st_autorefresh
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from helpers import run_ast_analysis, save_cache, load_cache, drop_cache, item_generation
+from helpers import run_ast_analysis, save_cache, load_cache, drop_cache, sorting_generation, search_generation, graph_generation, activity_generation
 
 
 root = pathlib.Path.cwd()
@@ -127,6 +127,9 @@ with tab1:
     # Input controls
     current_params = None
 
+    # Change input controls based on algo type
+    # Different algos will have a differeny UI
+    # Allow multiple different generation methods for each algo type, i.e. random generation, manual input, sliders, n to 10, etc
     if group in {"Sorting", "Searching", "Scheduling"}:
         if group == "Sorting":
             n_label = "Select maximum integer value in the array"
@@ -170,9 +173,25 @@ with tab1:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
 
+    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
+    search_algos = {"linear_search", "binary_search"}
+    graph_algos = {"dfs", "bfs"}
+    activity_algos = {"activity_selection"}
     # Generate input
     if st.button("Generate New Input Data", disabled=disabled):
-        st.session_state.generated_input = item_generation(*run_args)
+        selected_function = run_args[0]
+        match selected_function:
+            case name if name in sorting_algos:
+                st.text(run_args)
+                st.session_state.generated_input = sorting_generation(*run_args)
+            case name if name in search_algos:
+                st.session_state.generated_input = search_generation(*run_args)
+            case name if name in graph_algos:
+                st.session_state.generated_input = graph_generation(*run_args)
+            case name if name in activity_algos:
+                st.session_state.generated_input = activity_generation(*run_args)
+            case _:
+                raise ValueError(f"Unknown function {selected_function} for input generation")
         st.session_state.generated_params = current_params
         st.session_state.input_generated = True
 
@@ -199,6 +218,7 @@ with tab1:
                 input_generated=True,
             )
         else:
+            # Expand this to accpet a broader range of inputs for different algos
             st.warning("No generated input — auto-generating on run")
             future = st.session_state.executor.submit(
                 run_ast_analysis,

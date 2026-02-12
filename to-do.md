@@ -17,3 +17,11 @@
 - Export/Report
 - Custom algorithm input (i.e allow users to enter their own code)
 - Historical / Session Summary (tracks all runs in the current session)
+- Have generated inputs be saved across different algorithms
+
+- 1 to N, N to 1, User Gen
+- Save the lines in the order they are ran
+- For each algo have a preset option for input generation
+- Extending the scope of the gui, to pick family of algo, which algo, which way to pick inputs and integrate it all
+- Look into history
+- Have visualisation of items

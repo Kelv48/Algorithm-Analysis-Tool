@@ -36,6 +36,8 @@ def merge(left, right):
 
     return merged
 
+# Heap sort, Floyd-Worshal
+# Matrix and Tree algos also
 
 def insertion_sort(arr):
     for i in range(1, len(arr)):
