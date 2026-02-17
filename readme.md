@@ -12,6 +12,20 @@ The system works by transforming the program’s Abstract Syntax Tree (AST) and 
 
 ---
 
+## To Run
+
+- Windows
+```python
+streamlit run src/streamlit_app/app.py --client.showSidebarNavigation=False
+```
+
+- Linux/MacOS
+```bash
+./run_streamlit.sh
+```
+
+---
+
 ## Dependencies
 
 This module relies heavily on Python’s built-in `ast` module:

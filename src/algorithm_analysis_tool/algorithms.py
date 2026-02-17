@@ -111,3 +111,8 @@ def activity_selection(activities):
         if activities[i][0] >= selected[-1][1]:
             selected.append(activities[i])
     return selected
+
+# Add in matrix algorithms, tree algorithms, heap sort, Floyd-Worshal, etc.
+# Add in some graph algorithms like Dijkstra's, Prim's, Kruskal's, etc. and also some dynamic programming algorithms like Knapsack, LCS, etc.
+# Also add in some more scheduling algorithms like job scheduling, etc.
+# And add in some more searching and sorting algorithms as well, maybe radix sort, counting sort, etc.

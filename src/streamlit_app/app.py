@@ -1,6 +1,6 @@
 import pathlib
 import ast, sys
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
 from navigation import show_sidebar
 
@@ -84,10 +84,13 @@ ALGO_GROUPS = {
     "Scheduling": ["activity_selection"],
 }
 
+def get_executor():
+    return ThreadPoolExecutor(max_workers=1)
+
 # Session state defaults
+st.session_state.setdefault("executor", get_executor())
 st.session_state.setdefault("counters", counters_template.copy())
 st.session_state.setdefault("status", "")
-st.session_state.setdefault("executor", ProcessPoolExecutor(max_workers=1))
 st.session_state.setdefault("future", None)
 st.session_state.setdefault("is_running", False)
 st.session_state.setdefault("input_generated", False)
@@ -106,7 +109,7 @@ tree = load_ast(algo_path)
 show_sidebar()
 st.title("Algorithm Analysis Tool: Operation Counter")
 
-disabled = st.session_state.get("is_running", False)
+
 tab1, tab2 = st.tabs(["Single Run", "Compare Algos"])
 
 
@@ -114,6 +117,8 @@ tab1, tab2 = st.tabs(["Single Run", "Compare Algos"])
 # Tab 1: Single Run
 # ===========================
 with tab1:
+    disabled = st.session_state.get("is_running", False)
+
     group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()), disabled=disabled)
     selected_function = st.selectbox(
         "Algorithm", ALGO_GROUPS[group], disabled=disabled, key="selected_function"
@@ -134,21 +139,9 @@ with tab1:
     # Different algos will have a differeny UI
     # Allow multiple different generation methods for each algo type, i.e. random generation, manual input, sliders, n to 10, etc
     if group in {"Sorting", "Searching", "Scheduling"}:
-        if group == "Sorting":
-            n_label = "Select maximum integer value in the array"
-            arr_label = "Select array length"
-        elif group == "Searching":
-            n_label = "Select maximum integer value in the array"
-            arr_label = "Select array length"
-        else:
-            n_label = "Select maximum time value for activities"
-            arr_label = "Select number of activities"
-
-        input_type = st.radio(
-            "Choose input method",
-            ["Slider (1–10000)", "Manual input"]
-        )
-
+        n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
+        arr_label = "Select array length" if group != "Scheduling" else "Select number of activities"
+        input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input"], key="slider_input")
         col1, col2 = st.columns(2)
 
         with col1:
@@ -180,7 +173,6 @@ with tab1:
     search_algos = {"linear_search", "binary_search"}
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
-    # Generate input
     if st.button("Generate New Input Data", disabled=disabled):
         selected_function = run_args[0]
         match selected_function:
@@ -198,7 +190,6 @@ with tab1:
         st.session_state.generated_params = current_params
         st.session_state.input_generated = True
 
-    # Preview generated input
     if st.session_state.generated_input is not None:
         st.caption("Generated input preview:")
         preview = st.session_state.generated_input
@@ -206,8 +197,7 @@ with tab1:
             preview = preview[:10]
         st.write(preview)
 
-    # Run analysis
-    if st.button("Run AST Analysis", disabled=st.session_state.future is not None):
+    if st.button("Run AST Analysis", disabled=st.session_state.is_running):
         drop_cache(cache_key)
         st.session_state.status = "Running analysis..."
         st.session_state.is_running = True
@@ -221,7 +211,6 @@ with tab1:
                 input_generated=True,
             )
         else:
-            # Expand this to accpet a broader range of inputs for different algos
             st.warning("No generated input — auto-generating on run")
             future = st.session_state.executor.submit(
                 run_ast_analysis,
@@ -233,47 +222,37 @@ with tab1:
         st.session_state.future = future
         st.rerun()
 
-    # Cancel run
     if st.button("Cancel Run", disabled=not st.session_state.is_running):
         st.session_state.status = "Cancelling..."
+
         if st.session_state.future:
             st.session_state.future.cancel()
-            try:
-                st.session_state.future._process.terminate()
-            except Exception:
-                pass
 
         st.session_state.is_running = False
         st.session_state.future = None
-        st.session_state.executor.shutdown(wait=False)
-        st.session_state.executor = ProcessPoolExecutor(max_workers=1)
+        # st.session_state.executor = ThreadPoolExecutor(max_workers=1)
 
-    # Running indicator
     if st.session_state.is_running:
         with st.spinner("Analyzing AST and executing instrumented code…"):
             st.caption("Parsing → instrumenting → executing")
 
-    # Poll future
     if st.session_state.future:
         st_autorefresh(interval=2000, key="poll_ast")
 
         if st.session_state.future.done():
             result = st.session_state.future.result()
-
             if result:
                 st.session_state.counters = result
                 st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
                 save_cache(cache_key, result)
             else:
                 st.session_state.status = f"Function '{selected_function}' not found"
-
             st.session_state.future = None
             st.session_state.is_running = False
 
     if st.session_state.status:
         st.info(st.session_state.status)
 
-    # Charts
     counters = st.session_state.counters
 
     st.multiselect(
@@ -295,7 +274,6 @@ with tab1:
 # ===========================
 with tab2:
     st.subheader("Compare Two Cached Algorithm Runs")
-
     CACHE_DIR = pathlib.Path("cache")
     cached_files = [f.stem for f in CACHE_DIR.glob("*.joblib")]
 
@@ -310,34 +288,14 @@ with tab2:
         counters2 = load_cache(algo2_key)
 
         if counters1 and counters2:
-            df1 = pd.DataFrame({
-                "Operation": list(counters1.keys()),
-                "Count": list(counters1.values()),
-                "Algorithm": algo1_key,
-            })
-
-            df2 = pd.DataFrame({
-                "Operation": list(counters2.keys()),
-                "Count": list(counters2.values()),
-                "Algorithm": algo2_key,
-            })
-
+            df1 = pd.DataFrame({"Operation": list(counters1.keys()), "Count": list(counters1.values()), "Algorithm": algo1_key})
+            df2 = pd.DataFrame({"Operation": list(counters2.keys()), "Count": list(counters2.values()), "Algorithm": algo2_key})
             df = pd.concat([df1, df2])
 
-            fig = px.bar(
-                df,
-                x="Operation",
-                y="Count",
-                color="Algorithm",
-                barmode="group",
-                text="Count",
-                title="Operation Count Comparison",
-            )
-
+            fig = px.bar(df, x="Operation", y="Count", color="Algorithm", barmode="group", text="Count",
+                         title="Operation Count Comparison")
             fig.update_traces(textposition="outside")
             st.plotly_chart(fig, use_container_width=True)
 
             st.subheader("Raw Data Comparison")
-            st.dataframe(
-                df.pivot(index="Operation", columns="Algorithm", values="Count").fillna(0)
-            )
+            st.dataframe(df.pivot(index="Operation", columns="Algorithm", values="Count").fillna(0))

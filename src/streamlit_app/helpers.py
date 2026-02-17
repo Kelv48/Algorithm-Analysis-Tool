@@ -1,7 +1,6 @@
 import pathlib, ast, operator
 from random import randint
 import pathlib
-from unittest import case
 import joblib
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
@@ -89,7 +88,7 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, **
 
     exec_globals[func_name](*final_args, **kwargs)
 
-    return counters
+    return counters # , history, execution_order
 
 CACHE_DIR = pathlib.Path("cache")
 CACHE_DIR.mkdir(exist_ok=True)
@@ -128,6 +127,7 @@ def search_generation(func_name, *args):
     target = randint(1, n_range)
     return [arr, target]
 
+# Expand the graph generation to support different types of graph inputs for different graph algorithms, currently just returns the same graph for testing purposes
 def graph_generation(func_name, *args):
     graph = {
         'A': ['B','C'],
@@ -146,3 +146,5 @@ def activity_generation(func_name, *args):
     n_range, arr_length = args
     activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
     return [activities]
+
+# Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well
