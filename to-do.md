@@ -25,3 +25,6 @@
 - Extending the scope of the gui, to pick family of algo, which algo, which way to pick inputs and integrate it all
 - Look into history
 - Have visualisation of items
+- Save user generated lists across algos and groups as long as the sliders aren't changed
+- Implement a bigO complexity check using the multi runs
+    - Could use the same arrays and show N, nlogn, n^2, n! etc and show the algo you ran and where it falls within these baselines

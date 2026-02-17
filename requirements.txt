@@ -5,4 +5,5 @@ plotly
 pytest
 streamlit_autorefresh
 streamlit-elements
+streamlit-option-menu
 joblib

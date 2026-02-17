@@ -2,6 +2,7 @@ import pathlib
 import ast, sys
 from concurrent.futures import ProcessPoolExecutor
 from streamlit_autorefresh import st_autorefresh
+from navigation import show_sidebar
 
 import streamlit as st
 import pandas as pd
@@ -63,7 +64,7 @@ def display_charts(counters_dict, arr_length=None, title_suffix=""):
     st.dataframe(df.set_index("Operation"))
 
 
-st.set_page_config(page_title="Operation Counter", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Operation Counter", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 counters_template = {
     "assignments": 0,
@@ -102,6 +103,8 @@ def load_ast(path):
 
 tree = load_ast(algo_path)
 
+show_sidebar()
+st.title("Algorithm Analysis Tool: Operation Counter")
 
 disabled = st.session_state.get("is_running", False)
 tab1, tab2 = st.tabs(["Single Run", "Compare Algos"])
