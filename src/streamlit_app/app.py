@@ -1,6 +1,6 @@
 import pathlib
 import ast, sys
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
 from navigation import show_sidebar
 

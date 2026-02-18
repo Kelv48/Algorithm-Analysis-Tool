@@ -6,7 +6,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "Algorithm-Analysis-Tool"
 version = "2025.1.4"
-description = "A command-line tool for analyzing algorithms."
+description = "A command-line tool for analyzing algorithms. It provides a user-friendly interface to evaluate the performance of various algorithms, 
+allowing users to input parameters and visualize results."
 authors = [
 { name="Kelvin", email="kelvinosagie05@gmail.com" }
 ]
