@@ -2,6 +2,8 @@ import pathlib, ast, operator
 from random import randint
 import pathlib
 import joblib
+import time
+import json
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
 from algorithm_analysis_tool.ast_visitor import (
@@ -88,28 +90,110 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, **
 
     exec_globals[func_name](*final_args, **kwargs)
 
-    return counters # , history, execution_order
+    return {
+        "counters": counters,
+        "input": final_args,
+        "meta": {
+            "length": extract_input_length(final_args),
+            "algorithm": func_name,
+        }
+    }
+
+
+
+
+def extract_input_length(input_args):
+    """
+    Extract meaningful input size from generated argument list.
+    """
+
+    if not input_args:
+        return None
+
+    primary = input_args[0]
+
+    # Array-based algorithms
+    if isinstance(primary, (list, tuple)):
+        return len(primary)
+
+    # Graph algorithms (dict adjacency list)
+    if isinstance(primary, dict):
+        return len(primary.keys())
+
+    return None
+
+# Note
+# Joblib maintains quick cache for per algo cache
+# Json maintains detailed cache for resent history
+
+# Cache Configs 
 
 CACHE_DIR = pathlib.Path("cache")
 CACHE_DIR.mkdir(exist_ok=True)
 
-def save_cache(key, data):
-    """Save Streamlit results to disk."""
-    path = CACHE_DIR / f"{key}.joblib"
+ALGO_DIR = CACHE_DIR / "algorithms"
+ALGO_DIR.mkdir(exist_ok=True)
+
+RECENT_RUNS_FILE = CACHE_DIR / "recent_runs.json"
+MAX_RECENT_RUNS = 10
+
+# Per Algo Cache
+
+def save_cache(algo_key, data):
+    path = ALGO_DIR / f"{algo_key}.joblib"
     joblib.dump(data, path)
 
-def load_cache(key):
-    """Load Streamlit results from disk if they exist."""
-    path = CACHE_DIR / f"{key}.joblib"
+def load_cache(algo_key):
+    path = ALGO_DIR / f"{algo_key}.joblib"
     if path.exists():
         return joblib.load(path)
     return None
 
-def drop_cache(key):
-    """Remove cached data if it exists."""
-    path = CACHE_DIR / f"{key}.joblib"
+def drop_cache(algo_key):
+    path = ALGO_DIR / f"{algo_key}.joblib"
     if path.exists():
         path.unlink()
+
+# Recent Run History
+
+def _read_recent_runs():
+    if RECENT_RUNS_FILE.exists():
+        with open(RECENT_RUNS_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def _write_recent_runs(runs):
+    with open(RECENT_RUNS_FILE, "w") as f:
+        json.dump(runs, f, indent=2)
+
+def save_recent_run(algorithm, n, arr, input_array, result):
+    runs = _read_recent_runs()
+
+    run_record = {
+        "algorithm": algorithm,
+        "timestamp": int(time.time() * 1000),
+        "params": {
+            "n": n,
+            "arr": arr,
+        },
+        "input_meta": {
+            "length": extract_input_length(input_array),
+            "range_max": n,
+        },
+        "results": result,
+    }
+
+    # Insert newest run first
+    runs.insert(0, run_record)
+
+    # Keep only last N runs overall
+    runs = runs[:MAX_RECENT_RUNS]
+
+    _write_recent_runs(runs)
+
+
+def load_recent_runs():
+    return _read_recent_runs()
 
 
 def sorting_generation(func_name, *args):

@@ -1,4 +1,5 @@
 import pathlib
+import time
 import ast, sys
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
@@ -7,7 +8,7 @@ from navigation import show_sidebar
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from helpers import run_ast_analysis, save_cache, load_cache, drop_cache, sorting_generation, search_generation, graph_generation, activity_generation
+from helpers import run_ast_analysis, save_cache, load_cache, drop_cache, sorting_generation, search_generation, graph_generation, activity_generation, save_recent_run, load_recent_runs
 
 
 root = pathlib.Path.cwd()
@@ -40,7 +41,8 @@ def display_charts(counters_dict, arr_length=None, title_suffix=""):
 
     # Normalized metrics per element
     if arr_length:
-        df["Per Element"] = df["Count"] / arr_length
+        if arr_length and pd.api.types.is_numeric_dtype(df["Count"]):
+            df["Per Element"] = df["Count"] / arr_length
         fig3 = px.bar(df, x="Operation", y="Per Element", text="Per Element",
                       title=f"Normalized Operations per Element (n={arr_length}) {title_suffix}")
         fig3.update_traces(textposition="outside")
@@ -130,7 +132,8 @@ with tab1:
     if not user_has_run:
         cached = load_cache(cache_key)
         if cached is not None:
-            st.session_state.counters = cached
+            st.session_state.counters = cached["counters"]
+            st.session_state.arr_length = cached["meta"]["length"]
 
     # Input controls
     current_params = None
@@ -241,9 +244,18 @@ with tab1:
 
         if st.session_state.future.done():
             result = st.session_state.future.result()
-            if result:
-                st.session_state.counters = result
+            payload = result
+            st.session_state.arr_length = payload["meta"]["length"]
+            if payload:
+                st.session_state.counters = payload["counters"]
                 st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
+                save_recent_run(
+                    payload["meta"]["algorithm"],
+                    n if "n" in locals() else None,
+                    arr if "arr" in locals() else None,
+                    payload["input"],
+                    payload["counters"]
+                )
                 save_cache(cache_key, result)
             else:
                 st.session_state.status = f"Function '{selected_function}' not found"
@@ -262,9 +274,7 @@ with tab1:
         key="selected_operations",
     )
 
-    arr_length = None
-    if group in {"Sorting", "Searching", "Scheduling"}:
-        arr_length = arr
+    arr_length = st.session_state.get("arr_length")
 
     display_charts(counters, arr_length)
 
@@ -274,7 +284,7 @@ with tab1:
 # ===========================
 with tab2:
     st.subheader("Compare Two Cached Algorithm Runs")
-    CACHE_DIR = pathlib.Path("cache")
+    CACHE_DIR = pathlib.Path("cache/algorithms")
     cached_files = [f.stem for f in CACHE_DIR.glob("*.joblib")]
 
     if len(cached_files) < 2:
@@ -284,10 +294,16 @@ with tab2:
         algo2_options = [f for f in cached_files if f != algo1_key]
         algo2_key = st.selectbox("Select second algorithm", algo2_options, index=0)
 
-        counters1 = load_cache(algo1_key)
-        counters2 = load_cache(algo2_key)
+        payload1 = load_cache(algo1_key)
+        payload2 = load_cache(algo2_key)
 
-        if counters1 and counters2:
+        counters1 = counters2 = None
+
+        if payload1 and payload2:
+            counters1 = payload1["counters"]
+            counters2 = payload2["counters"]
+
+        if counters1 is not None and counters2 is not None:
             df1 = pd.DataFrame({"Operation": list(counters1.keys()), "Count": list(counters1.values()), "Algorithm": algo1_key})
             df2 = pd.DataFrame({"Operation": list(counters2.keys()), "Count": list(counters2.values()), "Algorithm": algo2_key})
             df = pd.concat([df1, df2])
@@ -299,3 +315,21 @@ with tab2:
 
             st.subheader("Raw Data Comparison")
             st.dataframe(df.pivot(index="Operation", columns="Algorithm", values="Count").fillna(0))
+    st.header("TEMP Placement")
+
+    recent_runs = load_recent_runs()
+
+    for run in recent_runs:
+        ts = time.strftime(
+            "%H:%M:%S",
+            time.localtime(run["timestamp"] / 1000)
+        )
+
+        st.write(
+            f"**{run['algorithm']}** | "
+            f"n={run['params']['n']} | "
+            f"len={run['input_meta']['length']} | "
+            f"{ts}"
+        )
+
+        st.json(run["results"])
