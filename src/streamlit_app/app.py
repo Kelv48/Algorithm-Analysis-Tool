@@ -132,19 +132,35 @@ with tab1:
     if not user_has_run:
         cached = load_cache(cache_key)
         if cached is not None:
-            st.session_state.counters = cached["counters"]
-            st.session_state.arr_length = cached["meta"]["length"]
+            st.session_state.counters = cached.get("counters", counters_template.copy())
+            st.session_state.arr_length = cached.get("meta", {}).get("length")
 
-    # Input controls
+    # --- Input controls ---
     current_params = None
 
-    # Change input controls based on algo type
-    # Different algos will have a differeny UI
-    # Allow multiple different generation methods for each algo type, i.e. random generation, manual input, sliders, n to 10, etc
     if group in {"Sorting", "Searching", "Scheduling"}:
         n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
         arr_label = "Select array length" if group != "Scheduling" else "Select number of activities"
+
+        # Slider / manual input
         input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input"], key="slider_input")
+
+        # Input generation mode
+        mode_input = st.radio(
+            "Choose input generation method",
+            ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
+            key="input_gen_mode"
+        )
+
+        # Map to internal mode
+        mode_map = {
+            "Random": "random",
+            "Guided / Edge-case": "guided",
+            "Evolutionary": "evolution",
+            "User-defined": "user"
+        }
+        mode = mode_map[mode_input]
+
         col1, col2 = st.columns(2)
 
         with col1:
@@ -167,7 +183,26 @@ with tab1:
         run_args = (selected_function,)
         current_params = {"algo": selected_function}
 
-    # Invalidate generated input if params changed
+    # --- User-defined function input ---
+    user_func = None
+    if mode == "user":
+        code_input = st.text_area(
+            "Define your input function as `def gen(n_range, arr_length): ...`",
+            key="user_func_code"
+        )
+        if code_input:
+            local_vars = {}
+            try:
+                exec(code_input, {}, local_vars)
+                user_func = local_vars.get("gen")
+                if not callable(user_func):
+                    st.error("Your function must define `gen(n_range, arr_length)`")
+                    user_func = None
+            except Exception as e:
+                st.error(f"Error in user function: {e}")
+                user_func = None
+
+    # Invalidate previous input if params changed
     if st.session_state.generated_params != current_params:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
@@ -176,64 +211,58 @@ with tab1:
     search_algos = {"linear_search", "binary_search"}
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
+
     if st.button("Generate New Input Data", disabled=disabled):
         selected_function = run_args[0]
+        base_array = None
+        if mode == "evolution" and st.session_state.generated_input:
+            base_array = st.session_state.generated_input[0]
+
         match selected_function:
             case name if name in sorting_algos:
-                st.text(run_args)
-                st.session_state.generated_input = sorting_generation(*run_args)
+                st.session_state.generated_input = sorting_generation(
+                    *run_args, mode=mode, base_array=base_array, user_func=user_func
+                )
             case name if name in search_algos:
-                st.session_state.generated_input = search_generation(*run_args)
+                st.session_state.generated_input = search_generation(
+                    *run_args, mode=mode, base_array=base_array, user_func=user_func
+                )
+            case name if name in activity_algos:
+                st.session_state.generated_input = activity_generation(
+                    *run_args, mode=mode, base_array=base_array, user_func=user_func
+                )
             case name if name in graph_algos:
                 st.session_state.generated_input = graph_generation(*run_args)
-            case name if name in activity_algos:
-                st.session_state.generated_input = activity_generation(*run_args)
-            case _:
-                raise ValueError(f"Unknown function {selected_function} for input generation")
+
         st.session_state.generated_params = current_params
         st.session_state.input_generated = True
 
     if st.session_state.generated_input is not None:
-        st.caption("Generated input preview:")
-        preview = st.session_state.generated_input
-        if isinstance(preview, (list, tuple)) and len(preview) > 10:
-            preview = preview[:10]
-        st.write(preview)
+        st.caption("Generated input")
 
+    # --- Run AST Analysis ---
     if st.button("Run AST Analysis", disabled=st.session_state.is_running):
         drop_cache(cache_key)
         st.session_state.status = "Running analysis..."
         st.session_state.is_running = True
 
-        if st.session_state.input_generated:
-            st.success("Using generated input (locked to current parameters)")
-            future = st.session_state.executor.submit(
-                run_ast_analysis,
-                *run_args,
-                input_arr=st.session_state.generated_input,
-                input_generated=True,
-            )
-        else:
-            st.warning("No generated input — auto-generating on run")
-            future = st.session_state.executor.submit(
-                run_ast_analysis,
-                *run_args,
-                input_arr=None,
-                input_generated=False,
-            )
+        future = st.session_state.executor.submit(
+            run_ast_analysis,
+            *run_args,
+            input_arr=st.session_state.generated_input if st.session_state.input_generated else None,
+            input_generated=st.session_state.input_generated,
+            input_mode = mode
+        )
 
         st.session_state.future = future
         st.rerun()
 
     if st.button("Cancel Run", disabled=not st.session_state.is_running):
         st.session_state.status = "Cancelling..."
-
         if st.session_state.future:
             st.session_state.future.cancel()
-
         st.session_state.is_running = False
         st.session_state.future = None
-        # st.session_state.executor = ThreadPoolExecutor(max_workers=1)
 
     if st.session_state.is_running:
         with st.spinner("Analyzing AST and executing instrumented code…"):
@@ -241,11 +270,9 @@ with tab1:
 
     if st.session_state.future:
         st_autorefresh(interval=2000, key="poll_ast")
-
         if st.session_state.future.done():
-            result = st.session_state.future.result()
-            payload = result
-            st.session_state.arr_length = payload["meta"]["length"]
+            payload = st.session_state.future.result()
+            st.session_state.arr_length = payload.get("meta", {}).get("length")
             if payload:
                 st.session_state.counters = payload["counters"]
                 st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
@@ -254,9 +281,10 @@ with tab1:
                     n if "n" in locals() else None,
                     arr if "arr" in locals() else None,
                     payload["input"],
-                    payload["counters"]
+                    payload["counters"],
+                    mode=mode, 
                 )
-                save_cache(cache_key, result)
+                save_cache(cache_key, payload, mode=mode)
             else:
                 st.session_state.status = f"Function '{selected_function}' not found"
             st.session_state.future = None
@@ -265,8 +293,8 @@ with tab1:
     if st.session_state.status:
         st.info(st.session_state.status)
 
+    # Operation selection
     counters = st.session_state.counters
-
     st.multiselect(
         "Select operations to include:",
         options=list(counters.keys()),
@@ -275,6 +303,8 @@ with tab1:
     )
 
     arr_length = st.session_state.get("arr_length")
+    if not isinstance(arr_length, (int, float)):
+        arr_length = None
 
     display_charts(counters, arr_length)
 
@@ -298,38 +328,46 @@ with tab2:
         payload2 = load_cache(algo2_key)
 
         counters1 = counters2 = None
-
+        mode1 = mode2 = "unknown"
         if payload1 and payload2:
-            counters1 = payload1["counters"]
-            counters2 = payload2["counters"]
+            counters1 = payload1.get("counters")
+            counters2 = payload2.get("counters")
+            mode1 = payload1.get("meta", {}).get("input_mode", "unknown")
+            mode2 = payload2.get("meta", {}).get("input_mode", "unknown")
 
         if counters1 is not None and counters2 is not None:
-            df1 = pd.DataFrame({"Operation": list(counters1.keys()), "Count": list(counters1.values()), "Algorithm": algo1_key})
-            df2 = pd.DataFrame({"Operation": list(counters2.keys()), "Count": list(counters2.values()), "Algorithm": algo2_key})
+            df1 = pd.DataFrame({
+                "Operation": list(counters1.keys()),
+                "Count": list(counters1.values()),
+                "Algorithm": f"{algo1_key} ({mode1})"  # show mode
+            })
+            df2 = pd.DataFrame({
+                "Operation": list(counters2.keys()),
+                "Count": list(counters2.values()),
+                "Algorithm": f"{algo2_key} ({mode2})"  # show mode
+            })
             df = pd.concat([df1, df2])
 
-            fig = px.bar(df, x="Operation", y="Count", color="Algorithm", barmode="group", text="Count",
-                         title="Operation Count Comparison")
+            fig = px.bar(
+                df, x="Operation", y="Count", color="Algorithm", barmode="group", text="Count",
+                title="Operation Count Comparison"
+            )
             fig.update_traces(textposition="outside")
             st.plotly_chart(fig, use_container_width=True)
 
             st.subheader("Raw Data Comparison")
             st.dataframe(df.pivot(index="Operation", columns="Algorithm", values="Count").fillna(0))
-    st.header("TEMP Placement")
 
+    st.header("Recent Runs")
     recent_runs = load_recent_runs()
-
     for run in recent_runs:
-        ts = time.strftime(
-            "%H:%M:%S",
-            time.localtime(run["timestamp"] / 1000)
-        )
-
+        ts = time.strftime("%H:%M:%S", time.localtime(run["timestamp"] / 1000))
+        mode = run.get("params", {}).get("mode", "unknown")  # get input generation mode
         st.write(
             f"**{run['algorithm']}** | "
             f"n={run['params']['n']} | "
             f"len={run['input_meta']['length']} | "
+            f"mode={mode} | "
             f"{ts}"
         )
-
         st.json(run["results"])
