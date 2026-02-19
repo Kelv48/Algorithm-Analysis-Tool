@@ -15,45 +15,8 @@ COUNTERS = {
     "loop_iterations": 0
 }
 
-MAX_HISTORY_ARRAY_LENGTH = 6
-HISTORY = []
-
-def not_in(a, b):
-    return a not in b
-
-def reset_counters(counters):
-    counters = {
-        "assignments": 0,
-        "indexing": 0,
-        "function_calls": 0,
-        "returns": 0,
-        "comparisons": 0,
-        "arithmetic": 0,
-        "loop_nodes": 0,
-        "loop_iterations": 0
-    }
-    return counters
-
-
-import ast
-import operator
-import copy
-
-
-# Add in for and while loop counting
-COUNTERS = {
-    "assignments": 0,
-    "indexing": 0,
-    "function_calls": 0,
-    "returns": 0,
-    "comparisons": 0,
-    "arithmetic": 0,
-    "loop_nodes": 0,
-    "loop_iterations": 0
-}
-
-MAX_HISTORY_ARRAY_LENGTH = 6
-HISTORY = []
+MAX_ANIMATION_ARRAY_LENGTH = 6
+MAX_HISTORY_ARRAY_LENGTH = 100
 
 def not_in(a, b):
     return a not in b
@@ -77,13 +40,17 @@ def track_op(op_type, counters, arrays=None, line_no=None, history=None):
     Record a snapshot of counters and array state.
     Only stores arrays if they are smaller than MAX_HISTORY_ARRAY_LENGTH.
     Deepcopy ensures arrays are frozen at this moment.
-    """
-    arrays_snapshot = None
-    line_snapshot = line_no
-
+    """ 
     if arrays and len(arrays) > 0:
         first_array = arrays[0]
-        if isinstance(first_array, list) and len(first_array) <= MAX_HISTORY_ARRAY_LENGTH:
+        if isinstance(first_array, list) and len(first_array) > MAX_HISTORY_ARRAY_LENGTH:
+            return
+
+    arrays_snapshot = None
+    line_snapshot = line_no
+    if arrays and len(arrays) > 0:
+        first_array = arrays[0]
+        if isinstance(first_array, list) and len(first_array) <= MAX_ANIMATION_ARRAY_LENGTH:
             arrays_snapshot = [copy.deepcopy(a) for a in arrays]
         else:
             arrays_snapshot = None
@@ -98,8 +65,6 @@ def track_op(op_type, counters, arrays=None, line_no=None, history=None):
 
     if history is not None:
         history.append(snapshot)
-    else:
-        HISTORY.append(snapshot)
 
 
 def count_assign(counters, value, arrays=None, line_no=None):
@@ -291,10 +256,20 @@ class ASTVisitor(ast.NodeTransformer):
     def visit_Call(self, node):
         node = self.generic_visit(node)
 
-        if isinstance(node.func, ast.Name):
-            name = node.func.id
-            if name.startswith("count_") or name in __builtins__:
-                return node
+        if isinstance(node.func, ast.Attribute):
+            return node
+
+        if not isinstance(node.func, ast.Name):
+            return node
+
+        name = node.func.id
+        
+        if name.startswith("count_"):
+            return node
+        
+        import builtins
+        if hasattr(builtins, name):
+            return node
 
         # Inject arrays and line_no as keywords to count_call, not to fn
         return ast.Call(
@@ -595,31 +570,6 @@ class ASTVisitor(ast.NodeTransformer):
                 ast.Name(id="HISTORY", ctx=ast.Load())
             ],
             keywords=[]
-        )
-
-    # Function Calls
-    def visit_Call(self, node):
-        node = self.generic_visit(node)
-
-        if isinstance(node.func, ast.Name):
-            name = node.func.id
-            if name.startswith("count_") or name in __builtins__:
-                return node
-
-        # Inject arrays and line_no as keywords to count_call, not to fn
-        return ast.Call(
-            func=ast.Name(id="count_call", ctx=ast.Load()),
-            args=[
-                ast.Name(id="COUNTERS", ctx=ast.Load()),
-                node.func,
-                *node.args,  # only original args
-                ast.Name(id="HISTORY", ctx=ast.Load())
-            ],
-            keywords=[
-                ast.keyword(arg="arrays", value=ast.Name(id="arrays", ctx=ast.Load())),
-                ast.keyword(arg="line_no", value=ast.Constant(value=getattr(node, "lineno", None))),
-                *node.keywords  # preserve original keywords
-            ]
         )
     
     # Comparisons

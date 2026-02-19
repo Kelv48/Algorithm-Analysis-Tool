@@ -16,10 +16,79 @@ from helpers import (
 )
 
 
+# -----------------------------
+# Paths & Setup
+# -----------------------------
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root / "src" / "algorithm_analysis_tool" / "algorithms.py"
 sys.path.insert(0, str(ast_visitor_path))
+
+st.set_page_config(page_title="Algorithm Dashboard", page_icon="📊", layout="wide")
+
+ALGO_GROUPS = {
+    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort"],
+    "Searching": ["linear_search", "binary_search"],
+    "Graph": ["dfs", "bfs"],
+    "Scheduling": ["activity_selection"],
+}
+
+counters_template = {
+    "assignments": 0,
+    "indexing": 0,
+    "function_calls": 0,
+    "returns": 0,
+    "comparisons": 0,
+    "arithmetic": 0,
+    "loop_nodes": 0,
+    "loop_iterations": 0
+}
+
+# -----------------------------
+# Executor & Session State
+# -----------------------------
+def get_executor():
+    return ThreadPoolExecutor(max_workers=1)
+
+st.session_state.setdefault("executor", get_executor())
+st.session_state.setdefault("counters", counters_template.copy())
+st.session_state.setdefault("status", "")
+st.session_state.setdefault("future", None)
+st.session_state.setdefault("is_running", False)
+st.session_state.setdefault("input_generated", False)
+st.session_state.setdefault("generated_input", None)
+st.session_state.setdefault("generated_params", None)
+st.session_state.setdefault("arr_length", None)
+
+# -----------------------------
+# Load AST once
+# -----------------------------
+@st.cache_resource
+def load_ast(path):
+    with open(path, "r") as f:
+        return ast.parse(f.read())
+
+tree = load_ast(algo_path)
+
+show_sidebar()
+st.title("Algorithm Analysis Tool: Operation Counter")
+
+
+with st.sidebar:
+    st.title("Controls")
+    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
+    selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])
+
+    st.subheader("Input Configuration")
+    input_type = st.radio("Input Method", ["Slider (1–1000)", "Manual input"])
+    mode_input = st.radio(
+        "Input Generation Mode",
+        ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"]
+    )
+    mode_map = {"Random": "random", "Guided / Edge-case": "guided", 
+                "Evolutionary": "evolution", "User-defined": "user"}
+    mode = mode_map[mode_input]
+
 
 
 def display_charts(counters_dict, arr_length=None, title_suffix=""):
@@ -71,202 +140,47 @@ def display_charts(counters_dict, arr_length=None, title_suffix=""):
     st.dataframe(df.set_index("Operation"))
 
 
-def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5):
-    """
-    Visualize an algorithm step-by-step using the recorded AST history.
-    Only allows animation if the array is small enough.
-    """
-    st.subheader("Algorithm Step-through Visualization")
-
-    if not history:
-        st.info("No history to visualize.")
-        return
-
-    # Determine number of arrays safely
-    first_arrays = history[0].get(array_name) or []
-    if first_arrays and len(first_arrays[0]) > max_animation_length:
-        st.warning(
-            f"Array length is {len(first_arrays[0])}. "
-            f"Animations are disabled for arrays larger than {max_animation_length} to prevent memory issues."
-        )
-        return
-
-    code_lines = source_code.splitlines()
-    array_count = len(first_arrays)
-
-    # Persistent placeholders
-    code_placeholder = st.empty()
-    array_placeholders = [st.empty() for _ in range(array_count)]
-    counter_placeholder = st.empty()
-
-    # Slider
-    step_slider = st.slider("Step", 0, len(history) - 1, 0, key="step_slider", format="%d")
-    prev_step = history[step_slider - 1] if step_slider > 0 else None
-    current_step = history[step_slider]
-
-    display_step(current_step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step)
-
-    if st.button("Play Animation"):
-        st.info("Running…")
-        progress_bar = st.progress(0)
-
-        total_steps = len(history)
-        for i, step in enumerate(history):
-            prev_step = history[i - 1] if i > 0 else None
-            display_step(step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step)
-            progress_bar.progress((i + 1) / total_steps)
-            time.sleep(delay)
-
-        st.success("Animation complete!")
-
-
-def display_step(step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step=None):
-    """
-    Display a single step in the algorithm visualization.
-    Highlights array elements that changed compared to the previous step.
-    """
-    arrays = step.get(array_name) or []
-    prev_arrays = (prev_step.get(array_name) or [[] for _ in arrays]) if prev_step else [[] for _ in arrays]
-
-    # Highlight changed elements
-    highlighted_arrays = []
-    for arr, prev_arr in zip(arrays, prev_arrays):
-        line = []
-        for v, pv in zip(arr, prev_arr):
-            if pv is None or v != pv:
-                line.append(f"**{v}**")  # highlight changed values
-            else:
-                line.append(str(v))
-        highlighted_arrays.append(", ".join(line))
-
-    # Display arrays in persistent placeholders
-    for placeholder, arr_line in zip(array_placeholders, highlighted_arrays):
-        placeholder.markdown(f"[{arr_line}]")
-
-    # Display counters
-    counters = step.get("counters") or {}
-    if counters:
-        import pandas as pd
-        df = pd.DataFrame(list(counters.items()), columns=["Operation", "Count"])
-        counter_placeholder.dataframe(df.set_index("Operation"))
-
-    # Highlight current line in code using st.code
-    current_line_no = step.get("line_no")
-    highlighted_code = ""
-    for i, line in enumerate(code_lines, start=1):
-        if i == current_line_no:
-            highlighted_code += f"{line}  # <<< current line\n"
-        else:
-            highlighted_code += f"{line}\n"
-
-    code_placeholder.code(highlighted_code, language="python")
-
-st.set_page_config(page_title="Operation Counter", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
-
-counters_template = {
-    "assignments": 0,
-    "indexing": 0,
-    "function_calls": 0,
-    "returns": 0,
-    "comparisons": 0,
-    "arithmetic": 0,
-    "loop_nodes": 0,
-    "loop_iterations": 0
-}
-
-ALGO_GROUPS = {
-    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort"],
-    "Searching": ["linear_search", "binary_search"],
-    "Graph": ["dfs", "bfs"],
-    "Scheduling": ["activity_selection"],
-}
-
-def get_executor():
-    return ThreadPoolExecutor(max_workers=1)
-
-# Session state defaults
-st.session_state.setdefault("executor", get_executor())
-st.session_state.setdefault("counters", counters_template.copy())
-st.session_state.setdefault("status", "")
-st.session_state.setdefault("future", None)
-st.session_state.setdefault("is_running", False)
-st.session_state.setdefault("input_generated", False)
-st.session_state.setdefault("generated_input", None)
-st.session_state.setdefault("generated_params", None)
-
-
-@st.cache_resource
-def load_ast(path):
-    with open(path, "r") as f:
-        return ast.parse(f.read())
-
-
-tree = load_ast(algo_path)
-
-show_sidebar()
-st.title("Algorithm Analysis Tool: Operation Counter")
-
-
-tab1, tab2, tab3 = st.tabs(["Single Run", "Compare Algos", "History"])
+# -----------------------------
+# Main Tabs
+# -----------------------------
+tab1, tab2, tab3 = st.tabs(["Single Run", "Compare Runs", "History / Visualization"])
 
 
 # ===========================
 # Tab 1: Single Run
 # ===========================
 with tab1:
+    st.header("Run Algorithm & AST Analysis")
     disabled = st.session_state.get("is_running", False)
 
-    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()), disabled=disabled)
-    selected_function = st.selectbox(
-        "Algorithm", ALGO_GROUPS[group], disabled=disabled, key="selected_function"
-    )
-
-    user_has_run = st.session_state.future is not None or st.session_state.is_running
+    # Use sidebar selections
+    # group, selected_function, input_type, mode are taken from sidebar
     cache_key = selected_function
+    user_has_run = st.session_state.future is not None or st.session_state.is_running
 
+    # Load cached counters if no run yet
     if not user_has_run:
         cached = load_cache(cache_key)
         if cached is not None:
             st.session_state.counters = cached.get("counters", counters_template.copy())
             st.session_state.arr_length = cached.get("meta", {}).get("length")
 
-    # --- Input controls ---
+    # --- Input sliders / number input on main page ---
     current_params = None
-
     if group in {"Sorting", "Searching", "Scheduling"}:
         n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
         arr_label = "Select array length" if group != "Scheduling" else "Select number of activities"
-
-        # Slider / manual input
-        input_type = st.radio("Choose input method", ["Slider (1–10000)", "Manual input"], key="slider_input")
-
-        # Input generation mode
-        mode_input = st.radio(
-            "Choose input generation method",
-            ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
-            key="input_gen_mode"
-        )
-
-        # Map to internal mode
-        mode_map = {
-            "Random": "random",
-            "Guided / Edge-case": "guided",
-            "Evolutionary": "evolution",
-            "User-defined": "user"
-        }
-        mode = mode_map[mode_input]
-
+        
         col1, col2 = st.columns(2)
-
         with col1:
             if input_type.startswith("Slider"):
-                n = st.slider(n_label, 1, 10000, 100, key="slider_n", disabled=disabled)
+                n = st.slider(n_label, 1, 1000, 100, key="slider_n", disabled=disabled)
             else:
                 n = st.number_input(n_label, 1, value=100, key="free_input_n", disabled=disabled)
 
         with col2:
             if input_type.startswith("Slider"):
-                arr = st.slider(arr_label, 1, 10000, 100, key="slider_arr", disabled=disabled)
+                arr = st.slider(arr_label, 1, 1000, 100, key="slider_arr", disabled=disabled)
             else:
                 arr = st.number_input(arr_label, 1, value=100, key="free_input_arr", disabled=disabled)
 
@@ -297,7 +211,7 @@ with tab1:
                 st.error(f"Error in user function: {e}")
                 user_func = None
 
-    # Invalidate previous input if params changed
+     # Reset generated input if parameters changed
     if st.session_state.generated_params != current_params:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
@@ -307,6 +221,7 @@ with tab1:
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
 
+    # --- Generate Input Data ---
     if st.button("Generate New Input Data", disabled=disabled):
         selected_function = run_args[0]
         base_array = None
@@ -389,7 +304,7 @@ with tab1:
     if st.session_state.status:
         st.info(st.session_state.status)
 
-    # Operation selection
+     # --- Operation Selection & Charts ---
     counters = st.session_state.counters
     st.multiselect(
         "Select operations to include:",
@@ -405,96 +320,77 @@ with tab1:
     display_charts(counters, arr_length)
 
 
-# ===========================
+# -----------------------------
 # Tab 2: Compare Cached Runs
-# ===========================
+# -----------------------------
 with tab2:
-    st.subheader("Compare Two Cached Algorithm Runs")
+    st.header("Compare Cached Algorithm Runs")
     CACHE_DIR = pathlib.Path("cache/algorithms")
     cached_files = [f.stem for f in CACHE_DIR.glob("*.joblib")]
-
     if len(cached_files) < 2:
         st.info("At least two cached runs are required to compare.")
     else:
-        algo1_key = st.selectbox("Select first algorithm", cached_files, index=0)
-        algo2_options = [f for f in cached_files if f != algo1_key]
-        algo2_key = st.selectbox("Select second algorithm", algo2_options, index=0)
-
-        payload1 = load_cache(algo1_key)
-        payload2 = load_cache(algo2_key)
-
-        counters1 = counters2 = None
-        mode1 = mode2 = "unknown"
+        algo1_key = st.selectbox("Select first algorithm", cached_files)
+        algo2_key = st.selectbox("Select second algorithm", [f for f in cached_files if f != algo1_key])
+        payload1, payload2 = load_cache(algo1_key), load_cache(algo2_key)
         if payload1 and payload2:
-            counters1 = payload1.get("counters")
-            counters2 = payload2.get("counters")
-            mode1 = payload1.get("meta", {}).get("input_mode", "unknown")
-            mode2 = payload2.get("meta", {}).get("input_mode", "unknown")
-
-        if counters1 is not None and counters2 is not None:
-            df1 = pd.DataFrame({
-                "Operation": list(counters1.keys()),
-                "Count": list(counters1.values()),
-                "Algorithm": f"{algo1_key} ({mode1})"  # show mode
-            })
-            df2 = pd.DataFrame({
-                "Operation": list(counters2.keys()),
-                "Count": list(counters2.values()),
-                "Algorithm": f"{algo2_key} ({mode2})"  # show mode
-            })
+            df1 = pd.DataFrame({"Operation": list(payload1["counters"].keys()), "Count": list(payload1["counters"].values()), "Algorithm": algo1_key})
+            df2 = pd.DataFrame({"Operation": list(payload2["counters"].keys()), "Count": list(payload2["counters"].values()), "Algorithm": algo2_key})
             df = pd.concat([df1, df2])
-
-            fig = px.bar(
-                df, x="Operation", y="Count", color="Algorithm", barmode="group", text="Count",
-                title="Operation Count Comparison"
-            )
+            fig = px.bar(df, x="Operation", y="Count", color="Algorithm", barmode="group", text="Count", title="Operation Count Comparison")
             fig.update_traces(textposition="outside")
             st.plotly_chart(fig, use_container_width=True)
-
-            st.subheader("Raw Data Comparison")
+            st.subheader("Raw Data")
             st.dataframe(df.pivot(index="Operation", columns="Algorithm", values="Count").fillna(0))
 
-    st.header("Recent Runs")
-    recent_runs = load_recent_runs()
-    for run in recent_runs:
-        ts = time.strftime("%H:%M:%S", time.localtime(run["timestamp"] / 1000))
-        mode = run.get("params", {}).get("mode", "unknown")  # get input generation mode
-        st.write(
-            f"**{run['algorithm']}** | "
-            f"n={run['params']['n']} | "
-            f"len={run['input_meta']['length']} | "
-            f"mode={mode} | "
-            f"{ts}"
-        )
-        st.json(run["results"])
-
+# -----------------------------
+# Tab 3: History / Step Visualization
+# -----------------------------
 with tab3:
-    last_run = load_most_recent_run() 
+    st.header("Recent Runs & Algorithm Visualization")
+
+    # Load last run
+    last_run = load_most_recent_run()
     if last_run:
         history = last_run.get("history", [])
         algorithm_name = last_run["algorithm"]
 
-        # Optional: define helpers if needed
-        helper_map = {
-            "merge_sort": ["merge"]
-        }
+        helper_map = {"merge_sort": ["merge"]}
+        source_code = extract_source_for_algorithm(algo_path, algorithm_name, helper_map=helper_map)
 
-        source_code = extract_source_for_algorithm(
-            "src/algorithm_analysis_tool/algorithms.py",
-            algorithm_name,
-            helper_map=helper_map
-        )
+        st.subheader(f"Last Run History: {algorithm_name}")
 
-        st.subheader(f"History: {algorithm_name}")
-
-        # Check if arrays were stored in history
-        can_visualize = any(snapshot.get("arrays") is not None for snapshot in history)
-
+        # Only allow animation if arrays exist in history
+        can_visualize = any(snapshot.get("arrays") for snapshot in history)
         if can_visualize and source_code.strip():
+            from helpers import visualize_algorithm
             visualize_algorithm(history, source_code)
         else:
-            st.warning(
-                "Animation cannot be run: input arrays were too large, so snapshots were not stored."
-            )
+            st.warning("Animation cannot run: input arrays were too large, so snapshots were not stored.")
     else:
         st.info("No recent runs to visualize.")
+
+    # -----------------------------
+    # Show last 10 runs as cards
+    # -----------------------------
+    st.subheader("Recent Runs Summary (Top Counters)")
+
+    recent_runs = load_recent_runs()[:10]
+    if recent_runs:
+        rows = []
+        for run in recent_runs:
+            counters = run.get("results", {})
+            rows.append({
+                "Algorithm": run["algorithm"],
+                "n": run.get("params", {}).get("n", "-"),
+                "Length": run.get("input_meta", {}).get("length", "-"),
+                "Mode": run.get("params", {}).get("mode", "-"),
+                "Comparisons": counters.get("comparisons", 0),
+                "Assignments": counters.get("assignments", 0),
+                "Loop Iter": counters.get("loop_iterations", 0)
+            })
+
+        df = pd.DataFrame(rows)
+        st.dataframe(df.style.background_gradient(cmap="Blues", subset=["Comparisons", "Assignments", "Loop Iter"]))
+    else:
+        st.info("No Runs to Display")
