@@ -227,6 +227,7 @@ class ASTVisitor(ast.NodeTransformer):
             keywords=[
                 ast.keyword(arg="arrays", value=ast.Name(id="arrays", ctx=ast.Load())),
                 ast.keyword(arg="line_no", value=ast.Constant(value=getattr(node, "lineno", None))),
+                ast.Name(id="HISTORY", ctx=ast.Load()),
                 *node.keywords  # preserve original keywords
             ]
         )
