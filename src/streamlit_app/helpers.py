@@ -1,4 +1,4 @@
-import ast, operator
+import ast, operator, string
 from random import randint, choice, sample
 import pathlib, joblib, json, time, copy
 import streamlit as st
@@ -333,6 +333,27 @@ def _write_recent_runs(runs):
 def save_recent_run(algorithm, n, arr, input_array, result, mode="random", history=[]):
     runs = _read_recent_runs()  # load existing runs
 
+    # --- Prepare input meta ---
+    input_meta = {
+        "length": extract_input_length(input_array),
+        "range_max": n,
+    }
+
+    saved_input = input_array
+
+    # Special handling for graphs
+    if isinstance(input_array, list) and len(input_array) > 0 and isinstance(input_array[0], dict):
+        graph_dict = input_array[0]
+        edges = []
+        for u, vs in graph_dict.items():
+            for v in vs:
+                edges.append((u, v))
+        saved_input = {
+            "nodes": list(graph_dict.keys()),
+            "edges": edges
+        }
+        input_meta["length"] = len(graph_dict)
+
     run_record = {
         "algorithm": algorithm,
         "timestamp": int(time.time() * 1000),
@@ -342,17 +363,13 @@ def save_recent_run(algorithm, n, arr, input_array, result, mode="random", histo
             "arr": arr,
             "mode": mode,
         },
-        "input_meta": {
-            "length": extract_input_length(input_array),
-            "range_max": n,
-        },
+        "input_meta": input_meta,
         "results": result,
+        "input": saved_input
     }
 
-    runs.append(run_record)  # add new run
-    # Sort descending by timestamp
+    runs.append(run_record) 
     runs.sort(key=lambda r: r["timestamp"], reverse=True)
-    # Keep only last 10 runs
     runs = runs[:10]
 
     _write_recent_runs(runs)
@@ -434,19 +451,60 @@ def search_generation(func_name, n_range, arr_length,
 
     return [arr, target]
 
-# Expand the graph generation to support different types of graph inputs for different graph algorithms, currently just returns the same graph for testing purposes
-def graph_generation(func_name, *args):
-    """Return default test graph for DFS/BFS (expandable for more cases)."""
-    graph = {
-        'A': ['B', 'C'],
-        'B': ['D', 'E'],
-        'C': ['F'],
-        'D': [],
-        'E': ['F'],
-        'F': []
-    }
-    start_node = 'A'
+
+def graph_generation(func_name, num_nodes=6, num_edges=8, graph_type="Random", directed=True, start_node=None):
+    """
+    Generate configurable graphs for DFS/BFS.
+
+    Returns:
+        [graph_dict, start_node]
+    """
+
+    labels = list(string.ascii_uppercase[:num_nodes])
+    graph = {node: [] for node in labels}
+
+    # ---------- Tree / Connected graph ----------
+    if graph_type in {"Connected", "Tree"}:
+        for i in range(1, num_nodes):
+            parent = choice(labels[:i])
+            child = labels[i]
+            graph[parent].append(child)
+            if not directed:
+                graph[child].append(parent)
+
+    # ---------- Extra random edges ----------
+    max_edges = num_nodes * (num_nodes - 1)
+    if not directed:
+        max_edges //= 2
+
+    num_edges = min(num_edges, max_edges)
+
+    existing_edges = set()
+
+    for a in graph:
+        for b in graph[a]:
+            edge = (a, b) if directed else tuple(sorted([a, b]))
+            existing_edges.add(edge)
+
+    while len(existing_edges) < num_edges:
+        a, b = sample(labels, 2)
+        edge = (a, b) if directed else tuple(sorted([a, b]))
+
+        if edge in existing_edges:
+            continue
+
+        graph[a].append(b)
+        if not directed:
+            graph[b].append(a)
+
+        existing_edges.add(edge)
+
+    if start_node is None:
+        start_node = choice(labels)
+
     return [graph, start_node]
+
+
 
 def activity_generation(func_name, n_range, arr_length, mode="random", base_array=None, user_func=None):
     """Generate activities (start, end pairs) for scheduling algorithms."""

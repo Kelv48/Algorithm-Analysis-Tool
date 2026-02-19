@@ -79,15 +79,63 @@ with st.sidebar:
     group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
     selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])
 
-    st.subheader("Input Configuration")
-    input_type = st.radio("Input Method", ["Slider (1–1000)", "Manual input"])
-    mode_input = st.radio(
-        "Input Generation Mode",
-        ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"]
-    )
-    mode_map = {"Random": "random", "Guided / Edge-case": "guided", 
-                "Evolutionary": "evolution", "User-defined": "user"}
-    mode = mode_map[mode_input]
+    # Default mode (used for Graph)
+    mode = "random"
+    input_type = None
+
+    if group in {"Sorting", "Searching", "Scheduling"}:
+        st.subheader("Input Configuration")
+        input_type = st.radio("Input Method", ["Slider (1–1000)", "Manual input"])
+        
+        mode_input = st.radio(
+            "Input Generation Mode",
+            ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"]
+        )
+
+        mode_map = {
+            "Random": "random",
+            "Guided / Edge-case": "guided",
+            "Evolutionary": "evolution",
+            "User-defined": "user"
+        }
+
+        mode = mode_map[mode_input]
+    # -----------------------------
+    # Graph-specific controls
+    # -----------------------------
+    graph_params = {}
+
+    if group == "Graph":
+        st.divider()
+        st.subheader("Graph Configuration")
+
+        num_nodes = st.slider("Number of nodes", 2, 26, 6)
+
+        max_edges = num_nodes * (num_nodes - 1)
+        num_edges = st.slider(
+            "Number of edges",
+            1,
+            max_edges,
+            min(8, max_edges)
+        )
+
+        graph_type = st.selectbox(
+            "Graph type",
+            ["Random", "Connected", "Tree"]
+        )
+
+        directed = st.checkbox("Directed graph", value=True)
+
+        labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:num_nodes])
+        start_node = st.selectbox("Start node", labels)
+
+        graph_params = {
+            "num_nodes": num_nodes,
+            "num_edges": num_edges,
+            "graph_type": graph_type,
+            "directed": directed,
+            "start_node": start_node,
+        }
 
 
 
@@ -186,13 +234,13 @@ with tab1:
         current_params = {"algo": selected_function, "n": n, "arr": arr}
 
     else:
-        st.info("Using default test graph for DFS/BFS")
+        st.info("Configure graph parameters in the sidebar, (make sure to click 'Generate New Input Data' after changing parameters)")
         run_args = (selected_function,)
         current_params = {"algo": selected_function}
 
     # --- User-defined function input ---
     user_func = None
-    if mode == "user":
+    if group in {"Sorting", "Searching", "Scheduling"} and mode == "user":
         code_input = st.text_area(
             "Define your input function as `def gen(n_range, arr_length): ...`",
             key="user_func_code"
@@ -240,7 +288,10 @@ with tab1:
                     *run_args, mode=mode, base_array=base_array, user_func=user_func
                 )
             case name if name in graph_algos:
-                st.session_state.generated_input = graph_generation(*run_args)
+                st.session_state.generated_input = graph_generation(
+                    selected_function,
+                    **graph_params
+                )
 
         st.session_state.generated_params = current_params
         st.session_state.input_generated = True
@@ -253,6 +304,13 @@ with tab1:
         drop_cache(cache_key)
         st.session_state.status = "Running analysis..."
         st.session_state.is_running = True
+
+        if st.session_state.generated_input is None:
+            if selected_function in graph_algos:
+                st.session_state.generated_input = graph_generation(
+                    selected_function,
+                    **graph_params
+                )
 
         future = st.session_state.executor.submit(
             run_ast_analysis,
@@ -284,11 +342,21 @@ with tab1:
             if payload:
                 st.session_state.counters = payload["counters"]
                 st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
+                # Prepare input for saving recent runs
+                saved_input = payload["input"]
+
+                # If this is a graph, extract nodes and edges
+                if group == "Graph" and isinstance(st.session_state.generated_input, dict):
+                    g = st.session_state.generated_input
+                    # Ensure keys exist
+                    nodes = g.get("nodes", [])
+                    edges = g.get("edges", [])
+                    saved_input = {"nodes": nodes, "edges": edges}
                 save_recent_run(
                     payload["meta"]["algorithm"],
                     n if "n" in locals() else None,
                     arr if "arr" in locals() else None,
-                    payload["input"],
+                    saved_input,
                     payload["counters"],
                     mode=mode, 
                     history=payload.get("history", [])
@@ -356,8 +424,6 @@ with tab3:
         helper_map = {"merge_sort": ["merge"]}
         source_code = extract_source_for_algorithm(algo_path, algorithm_name, helper_map=helper_map)
 
-        # st.subheader(f"Last Run History: {algorithm_name}")
-
         # Only allow animation if arrays exist in history
         can_visualize = any(snapshot.get("arrays") for snapshot in history)
         if can_visualize and source_code.strip():
@@ -369,26 +435,74 @@ with tab3:
         st.info("No recent runs to visualize.")
 
     # -----------------------------
-    # Show last 10 runs as cards
+    # Recent Runs Summary (Top Counters)
     # -----------------------------
-    st.subheader("Recent Runs Summary (Top Counters)")
+    st.header("Recent Runs Summary (Top Counters)")
 
-    recent_runs = load_recent_runs()[:10]
+    recent_runs = load_recent_runs(limit=10)
     if recent_runs:
         rows = []
+        edge_tables = []
+
         for run in recent_runs:
             counters = run.get("results", {})
+            input_meta = run.get("input_meta", {})
+            input_data = run.get("input", {})
+
+            # --- Normalize input for nodes/edges ---
+            nodes_str = "-"
+            edges_list = []
+            is_graph = False
+            nodes = []
+
+            if isinstance(input_data, dict) and "nodes" in input_data and "edges" in input_data:
+                nodes = input_data.get("nodes", [])
+                edges_list = input_data.get("edges", [])
+                nodes_str = ", ".join(nodes)
+                is_graph = True
+            elif isinstance(input_data, list):
+                if len(input_data) == 2 and isinstance(input_data[0], dict):
+                    graph_dict = input_data[0]
+                    nodes = list(graph_dict.keys())
+                    nodes_str = ", ".join(nodes)
+                    for f, tos in graph_dict.items():
+                        for t in tos:
+                            edges_list.append([f, t])
+                    is_graph = True
+                else:
+                    nodes_str = str(input_data[0][:10]) if isinstance(input_data[0], list) else str(input_data[0])
+
+            # --- Main row for the counters table ---
             rows.append({
-                "Algorithm": run["algorithm"],
-                "n": run.get("params", {}).get("n", "-"),
-                "Length": run.get("input_meta", {}).get("length", "-"),
+                "Algorithm": run.get("algorithm", "-"),
                 "Mode": run.get("params", {}).get("mode", "-"),
+                "Length": input_meta.get("length", "-"),
                 "Comparisons": counters.get("comparisons", 0),
                 "Assignments": counters.get("assignments", 0),
-                "Loop Iter": counters.get("loop_iterations", 0)
+                "Loop Iter": counters.get("loop_iterations", 0),
+                "Nodes": nodes_str
             })
 
+            # --- Store edges table with flag ---
+            if is_graph and edges_list and len(nodes) <= 6 and len(edges_list) <= 8:
+                edge_tables.append((run.get("algorithm", "-"), pd.DataFrame(edges_list, columns=["From", "To"]), True))
+            else:
+                edge_tables.append((run.get("algorithm", "-"), None, is_graph))
+
+        # --- Display main counters table with heatmap ---
         df = pd.DataFrame(rows)
-        st.dataframe(df.style.background_gradient(cmap="Blues", subset=["Comparisons", "Assignments", "Loop Iter"]))
+        st.dataframe(
+            df.style.background_gradient(cmap="Blues", subset=["Comparisons", "Assignments", "Loop Iter"]),
+            use_container_width=True
+        )
+
+        # --- Display edges tables for small graphs ---
+        for algo_name, edges_df, is_graph_flag in edge_tables:
+            if edges_df is not None and not edges_df.empty:
+                st.markdown(f"**Edges for {algo_name}:**")
+                st.table(edges_df)
+            elif edges_df is None and is_graph_flag:
+                st.info(f"Edges for {algo_name} not displayed (graph too large)")
+
     else:
-        st.info("No Runs to Display")
+        st.info("No recent runs to display")

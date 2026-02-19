@@ -429,30 +429,6 @@ class ASTVisitor(ast.NodeTransformer):
         return node
 
 
-
-def run_code(src: str, counters):
-    tree = ast.parse(src)
-
-    transformer = ASTVisitor(counters)
-    tree = transformer.visit(tree)
-    ast.fix_missing_locations(tree)
-
-    env = {
-        "count_assign": count_assign,
-        "count_index": count_index,
-        "count_call": count_call,
-        "count_compare": count_compare,
-        "count_arith": count_arith,
-        "count_loop_iteration": count_loop_iteration,
-        "operator": operator,
-        "COUNTERS": counters,
-    }
-
-    exec(compile(tree, "<instrumented>", "exec"), env)
-
-    return counters
-
-
 # ---------------- Count functions ----------------
 
 def count_assign(counters, value, arrays=None, line_no=None, history=None):
