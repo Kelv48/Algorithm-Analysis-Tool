@@ -1,5 +1,4 @@
 import pathlib
-import time
 import ast, sys
 from concurrent.futures import ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
@@ -135,7 +134,6 @@ def display_charts(counters_dict, arr_length=None, title_suffix=""):
         loop_iter = df[df["Operation"] == "loop_iterations"]["Count"].values[0]
         st.metric("Total loop iterations", f"{loop_iter:,}")
 
-    # Raw data table
     st.subheader(f"Raw Operation Data {title_suffix}")
     st.dataframe(df.set_index("Operation"))
 
@@ -154,7 +152,6 @@ with tab1:
     disabled = st.session_state.get("is_running", False)
 
     # Use sidebar selections
-    # group, selected_function, input_type, mode are taken from sidebar
     cache_key = selected_function
     user_has_run = st.session_state.future is not None or st.session_state.is_running
 

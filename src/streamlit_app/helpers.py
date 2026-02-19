@@ -1,10 +1,6 @@
-import pathlib, ast, operator
+import ast, operator
 from random import randint, choice
-import pathlib
-import joblib
-import time
-import json
-import copy
+import pathlib, joblib, json, time, copy
 import streamlit as st
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
@@ -355,7 +351,7 @@ def save_recent_run(algorithm, n, arr, input_array, result, mode="random", histo
 
     runs.append(run_record)  # add new run
     # Sort descending by timestamp
-    runs.sort(key=lambda r: r["timestamp"])
+    runs.sort(key=lambda r: r["timestamp"], reverse=True)
     # Keep only last 10 runs
     runs = runs[:10]
 
@@ -463,3 +459,4 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
     return [activities]
 
 # Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well
+# Implement Graph generation methods
