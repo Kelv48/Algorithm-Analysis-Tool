@@ -1,5 +1,5 @@
 import ast, operator
-from random import randint, choice
+from random import randint, choice, sample
 import pathlib, joblib, json, time, copy
 import streamlit as st
 
@@ -150,12 +150,12 @@ def extract_input_length(input_args):
     return None
 
 
-def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5):
+def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5, algorithm_name=""):
     """
     Visualize an algorithm step-by-step using the recorded AST history.
     Only allows animation if the array is small enough.
     """
-    st.subheader("Algorithm Step-through Visualization")
+    st.subheader(f"Algorithm Step-through Visualization for {algorithm_name}")
 
     if not history:
         st.info("No history to visualize.")
@@ -407,10 +407,31 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
         raise ValueError(f"Unknown mode {mode}")
     return [arr]
 
-def search_generation(func_name, n_range, arr_length, mode="random", base_array=None, user_func=None):
+def search_generation(func_name, n_range, arr_length,
+                      mode="random", base_array=None, user_func=None):
     """Generate input array and target for searching algorithms."""
-    arr = sorting_generation(n_range, arr_length, mode, base_array, user_func)[0]
-    target = randint(1, n_range)
+
+    # --- Generate array ---
+    if mode == "user" and user_func:
+        arr = user_func(n_range, arr_length)
+
+    elif mode == "evolution" and base_array is not None:
+        arr = base_array
+
+    else:
+        arr = sample(range(1, n_range + 1), arr_length)
+
+    # --- Binary search requires sorted input ---
+    if func_name == "binary_search":
+        arr = sorted(arr)
+
+    # --- Pick a target ---
+    # 70% chance target exists, 30% chance it doesn't
+    if randint(1, 10) <= 7 and arr:
+        target = arr[randint(0, len(arr) - 1)]
+    else:
+        target = randint(1, n_range)
+
     return [arr, target]
 
 # Expand the graph generation to support different types of graph inputs for different graph algorithms, currently just returns the same graph for testing purposes

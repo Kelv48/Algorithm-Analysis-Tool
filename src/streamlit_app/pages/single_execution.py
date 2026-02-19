@@ -70,10 +70,11 @@ def load_ast(path):
 tree = load_ast(algo_path)
 
 show_sidebar()
-st.title("Algorithm Analysis Tool: Operation Counter")
+st.title("Algorithm Analysis Tool: Single Execution")
 
 
 with st.sidebar:
+    st.divider()
     st.title("Controls")
     group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
     selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])
@@ -355,13 +356,13 @@ with tab3:
         helper_map = {"merge_sort": ["merge"]}
         source_code = extract_source_for_algorithm(algo_path, algorithm_name, helper_map=helper_map)
 
-        st.subheader(f"Last Run History: {algorithm_name}")
+        # st.subheader(f"Last Run History: {algorithm_name}")
 
         # Only allow animation if arrays exist in history
         can_visualize = any(snapshot.get("arrays") for snapshot in history)
         if can_visualize and source_code.strip():
             from helpers import visualize_algorithm
-            visualize_algorithm(history, source_code)
+            visualize_algorithm(history, source_code, algorithm_name=algorithm_name)
         else:
             st.warning("Animation cannot run: input arrays were too large, so snapshots were not stored.")
     else:

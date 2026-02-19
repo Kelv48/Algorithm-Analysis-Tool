@@ -84,19 +84,3 @@ if cached_files:
 
 else:
     st.info("No cached algorithms yet.")
-
-# -----------------------------
-# Section 4: Quick Navigation
-# -----------------------------
-st.header("Quick Actions")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.page_link("pages/single_execution.py", label="▶ Run Single Analysis")
-
-with col2:
-    st.page_link("pages/multi_execution.py", label="📊 Compare Runs")
-
-with col3:
-    st.page_link("pages/test_page.py", label="📜 View History")
