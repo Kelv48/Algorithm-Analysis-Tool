@@ -413,6 +413,9 @@ with tab2:
 # Tab 3: History / Step Visualization
 # -----------------------------
 with tab3:
+
+    # Allow step visualization for graphs however dont show edges or nodes,
+    # For sorting/searching/scheduling show both step visualization and matching array snapshots
     st.header("Recent Runs & Algorithm Visualization")
 
     # Load last run
@@ -506,3 +509,6 @@ with tab3:
 
     else:
         st.info("No recent runs to display")
+
+
+# Quick sort, merge sort, dfs, currently broken
