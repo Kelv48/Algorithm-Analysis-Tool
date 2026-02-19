@@ -4,10 +4,11 @@ from streamlit_option_menu import option_menu
 def show_sidebar():
     with st.sidebar:
         selected = option_menu(
-            None,
-            ["Home", "Multi Execution", "None", "None"],
-            icons=['house', 'cloud-upload', "list-task", 'gear'],
-            default_index=["Home", "Multi Execution", "None", "None"].index(st.session_state.get("page", "Home")),
+            menu_title="Navigation",
+            menu_icon="cast",
+            options=["Dashboard", "Single Execution", "Multi Execution", "Settings"],
+            icons=['speedometer2', 'play-circle', "layers", 'gear'],
+            default_index=["Dashboard", "Single Execution", "Multi Execution", "Settings"].index(st.session_state.get("page", "Dashboard")),
             orientation="vertical",
             styles={
                 "container": {
@@ -18,10 +19,10 @@ def show_sidebar():
         )
 
     page_map = {
-        "Home": "app.py",
+        "Dashboard": "app.py",
+        "Single Execution": "pages/single_execution.py",
         "Multi Execution": "pages/multi_execution.py",
-        "None": "pages/Tasks.py",
-        "None": "pages/Settings.py",
+        "Settings": "pages/test_page.py",
     }
 
     if st.session_state.get("page") != selected:

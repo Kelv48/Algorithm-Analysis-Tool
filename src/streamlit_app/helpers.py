@@ -393,7 +393,7 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
             arr = [choice(unique_vals) for _ in range(arr_length)]
     elif mode == "evolution":
         if base_array is None:
-            raise ValueError("Evolution mode requires a base_array")
+            base_array = [randint(1, n_range) for _ in range(arr_length)]
         arr = base_array.copy()
         swaps = max(1, arr_length // 5)
         for _ in range(swaps):
