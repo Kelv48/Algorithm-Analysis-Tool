@@ -4,6 +4,7 @@ import pathlib
 import joblib
 import time
 import json
+import copy
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
 from algorithm_analysis_tool.ast_visitor import (
@@ -18,12 +19,31 @@ algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 # Also may need to also return the history of the counters at each step for visualization purposes, not just the final counters
 # And the order in which lines were executed
 def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, **kwargs):
-    
-    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
-    search_algos = {"linear_search", "binary_search"}
-    graph_algos = {"dfs", "bfs"}
-    activity_algos = {"activity_selection"}
+    """
+    Execute an algorithm with AST instrumentation, recording operation counts
+    and maintaining a local history of operations for visualization/animation.
 
+    Parameters:
+        func_name (str): Name of the algorithm function in algorithms.py
+        *args: Positional arguments for the algorithm
+        input_arr (list, optional): Pre-generated input array
+        input_generated (bool): Whether input_arr is provided
+        input_mode (str, optional): The input generation mode for caching
+        **kwargs: Other keyword arguments for the algorithm function
+
+    Returns:
+        dict: {
+            "counters": final counters,
+            "input": input array(s),
+            "history": list of snapshots of operations,
+            "meta": {
+                "length": input length,
+                "algorithm": func_name,
+                "input_mode": input_mode
+            }
+        }
+    """
+    # Local counters and history
     counters = {
         "assignments": 0,
         "indexing": 0,
@@ -34,18 +54,36 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
         "loop_nodes": 0,
         "loop_iterations": 0
     }
+    history = []
 
-    # Parse the algorithm file
+    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
+    search_algos = {"linear_search", "binary_search"}
+    graph_algos = {"dfs", "bfs"}
+    activity_algos = {"activity_selection"}
+
+    # Load and parse source code
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())
 
+    # Map function names to AST nodes
     function_map = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
     if func_name not in function_map:
         raise ValueError(f"Function {func_name} not found in algorithms.py")
 
-    # Prepare globals with counters and instrumentation
+    # Include helper functions if needed
+    needed_functions = resolve_helpers(func_name, function_map)
+    selected_nodes = [function_map[name] for name in function_map if name in needed_functions]
+
+    # Build module with only required functions
+    module_ast = ast.Module(body=selected_nodes, type_ignores=[])
+    visitor = ASTVisitor(counters)
+    module_ast = visitor.visit(module_ast)
+    ast.fix_missing_locations(module_ast)
+
+    # Prepare execution environment with local history
     exec_globals = {
         "COUNTERS": counters,
+        "HISTORY": history,
         "count_arith": count_arith,
         "count_assign": count_assign,
         "count_call": count_call,
@@ -53,54 +91,45 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
         "count_index": count_index,
         "count_loop_iteration": count_loop_iteration,
         "operator": operator,
-        "not_in": not_in
+        "not_in": not_in,
+        "arrays": [],
     }
 
-    needed_functions = resolve_helpers(func_name, function_map)
-    
-    selected_nodes = [
-        function_map[name]
-        for name in function_map
-        if name in needed_functions
-    ]
-    
-    module_ast = ast.Module(body=selected_nodes, type_ignores=[])
-
-    visitor = ASTVisitor(counters)
-    module_ast = visitor.visit(module_ast)
-    ast.fix_missing_locations(module_ast)
-
+    # Compile and execute AST
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
+    # Prepare input for the function
     if input_generated:
-        final_args = input_arr
+        final_args = [copy.deepcopy(a) for a in input_arr] if isinstance(input_arr, list) else copy.deepcopy(input_arr)
     else:
         match func_name:
             case name if name in sorting_algos:
-                final_args = sorting_generation(func_name, *args)
+                final_args = sorting_generation(func_name, *args, mode=input_mode)
             case name if name in search_algos:
-                final_args = search_generation(func_name, *args)
+                final_args = search_generation(func_name, *args, mode=input_mode)
             case name if name in graph_algos:
                 final_args = graph_generation(func_name, *args)
             case name if name in activity_algos:
-                final_args = activity_generation(func_name, *args)
+                final_args = activity_generation(func_name, *args, mode=input_mode)
             case _:
                 raise ValueError(f"Unknown function {func_name} for input generation")
+        final_args = [copy.deepcopy(arg) for arg in final_args]
 
+    # Assign arrays for instrumentation and run
+    exec_globals["arrays"] = [final_args[0]] if isinstance(final_args, list) else []
     exec_globals[func_name](*final_args, **kwargs)
 
     return {
         "counters": counters,
         "input": final_args,
+        "history": history,
         "meta": {
             "length": extract_input_length(final_args),
             "algorithm": func_name,
-            "input_mode" : input_mode
+            "input_mode": input_mode
         }
     }
-
-
 
 
 def extract_input_length(input_args):
@@ -122,6 +151,46 @@ def extract_input_length(input_args):
         return len(primary.keys())
 
     return None
+
+
+
+def extract_source_for_algorithm(algo_path, main_func_name, helper_map=None):
+    """
+    Extracts source code as a string for a main function + optional helpers.
+    
+    Parameters:
+        algo_path (str or Path): Path to the source file
+        main_func_name (str): The main algorithm function to extract
+        helper_map (dict): Optional dict mapping main functions to helper function names
+    
+    Returns:
+        str: Source code of the selected function(s)
+    """
+    with open(algo_path, "r") as f:
+        src_lines = f.readlines()
+        src_str = "".join(src_lines)
+
+    tree = ast.parse(src_str)
+    needed_funcs = set([main_func_name])
+    if helper_map and main_func_name in helper_map:
+        needed_funcs.update(helper_map[main_func_name])
+
+    blocks = []
+
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in needed_funcs:
+            # AST provides line numbers (1-indexed)
+            start = node.lineno - 1
+            end = getattr(node, "end_lineno", None)
+            if end is None:
+                # Fallback: take until next function or end of file
+                next_fn_lines = [n.lineno - 1 for n in tree.body if isinstance(n, ast.FunctionDef) and n.lineno > node.lineno]
+                end = next_fn_lines[0] if next_fn_lines else len(src_lines)
+            blocks.append("".join(src_lines[start:end]))
+
+    return "\n".join(blocks)
+
+
 
 # Note
 # Joblib maintains quick cache for per algo cache
@@ -160,25 +229,33 @@ def drop_cache(algo_key):
 # Recent Run History
 
 def _read_recent_runs():
+    """Read recent runs from JSON file, safely."""
     if RECENT_RUNS_FILE.exists():
-        with open(RECENT_RUNS_FILE, "r") as f:
-            return json.load(f)
+        try:
+            content = RECENT_RUNS_FILE.read_text().strip()
+            if not content:
+                return []
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return []
     return []
 
 def _write_recent_runs(runs):
+    """Write recent runs to JSON file."""
     with open(RECENT_RUNS_FILE, "w") as f:
         json.dump(runs, f, indent=2)
 
-def save_recent_run(algorithm, n, arr, input_array, result, mode="random"):
-    runs = _read_recent_runs()
+def save_recent_run(algorithm, n, arr, input_array, result, mode="random", history=[]):
+    runs = _read_recent_runs()  # load existing runs
 
     run_record = {
         "algorithm": algorithm,
         "timestamp": int(time.time() * 1000),
+        "history": history,
         "params": {
             "n": n,
             "arr": arr,
-            "mode": mode,  # <--- store input generation mode here
+            "mode": mode,
         },
         "input_meta": {
             "length": extract_input_length(input_array),
@@ -187,17 +264,29 @@ def save_recent_run(algorithm, n, arr, input_array, result, mode="random"):
         "results": result,
     }
 
-    # Insert newest run first
-    runs.insert(0, run_record)
-
-    # Keep only last N runs overall
-    runs = runs[:MAX_RECENT_RUNS]
+    runs.append(run_record)  # add new run
+    # Sort descending by timestamp
+    runs.sort(key=lambda r: r["timestamp"])
+    # Keep only last 10 runs
+    runs = runs[:10]
 
     _write_recent_runs(runs)
 
 
-def load_recent_runs():
-    return _read_recent_runs()
+def load_recent_runs(limit=None):
+    """Load recent runs, sorted by timestamp descending."""
+    runs = _read_recent_runs()
+    runs = sorted(runs, key=lambda r: r["timestamp"], reverse=True)
+    if limit:
+        return runs[:limit]
+    return runs
+
+def load_most_recent_run():
+    """Load the single most recent run based on timestamp, or None if none exist."""
+    runs = _read_recent_runs()
+    if not runs:
+        return None
+    return max(runs, key=lambda r: r["timestamp"])
 
 
 def sorting_generation(func_name, n_range, arr_length, mode="random", base_array=None, user_func=None):
