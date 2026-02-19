@@ -474,7 +474,7 @@ with tab3:
         history = last_run.get("history", [])
         algorithm_name = last_run["algorithm"]
 
-        # Optional: define helpers if needed, test if dynamic helpers resolution is working
+        # Optional: define helpers if needed
         helper_map = {
             "merge_sort": ["merge"]
         }
@@ -486,9 +486,15 @@ with tab3:
         )
 
         st.subheader(f"History: {algorithm_name}")
-        if history and source_code.strip():
+
+        # Check if arrays were stored in history
+        can_visualize = any(snapshot.get("arrays") is not None for snapshot in history)
+
+        if can_visualize and source_code.strip():
             visualize_algorithm(history, source_code)
         else:
-            st.info("No history available for the last run.")
+            st.warning(
+                "Animation cannot be run: input arrays were too large, so snapshots were not stored."
+            )
     else:
         st.info("No recent runs to visualize.")
