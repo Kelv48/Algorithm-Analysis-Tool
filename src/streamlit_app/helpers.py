@@ -12,9 +12,8 @@ root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 
-# This may need to be modified to accept a broader range of inputs for different algo types
-# Also may need to also return the history of the counters at each step for visualization purposes, not just the final counters
-# And the order in which lines were executed
+# Ast Runner
+
 def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, **kwargs):
     """
     Execute an algorithm with AST instrumentation, recording operation counts
@@ -150,6 +149,9 @@ def extract_input_length(input_args):
     return None
 
 
+
+# Visualization helper functions 
+
 def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5, algorithm_name=""):
     """
     Visualize an algorithm step-by-step using the recorded AST history.
@@ -198,6 +200,7 @@ def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_
 
         st.success("Animation complete!")
 
+
 def display_step(step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step=None):
     """
     Display a single step in the algorithm visualization.
@@ -238,6 +241,7 @@ def display_step(step, code_lines, code_placeholder, array_placeholders, counter
             highlighted_code += f"{line}\n"
 
     code_placeholder.code(highlighted_code, language="python")
+
 
 def extract_source_for_algorithm(algo_path, main_func_name, helper_map=None):
     """
@@ -391,6 +395,9 @@ def load_most_recent_run():
     return max(runs, key=lambda r: r["timestamp"])
 
 
+
+# Input Generators
+
 def sorting_generation(func_name, n_range, arr_length, mode="random", base_array=None, user_func=None):
     """Generate input array for sorting algorithms."""
     if mode == "random":
@@ -538,4 +545,3 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
     return [activities]
 
 # Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well
-# Implement Graph generation methods

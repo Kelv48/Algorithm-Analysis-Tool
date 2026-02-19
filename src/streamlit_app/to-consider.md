@@ -4,8 +4,6 @@
 - Seed control
 - Allow repeat run averages
 - Real-time progress bar
-- Allow the user to keep an array across runs
-- Allow the streamlit app to be ran using docker
 
 - Figure out st.elements
     - Implement it before thurs
