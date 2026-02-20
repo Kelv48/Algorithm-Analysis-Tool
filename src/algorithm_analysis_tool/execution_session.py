@@ -31,16 +31,20 @@ class ExecutionSession:
         self.history = []
         self.final_state = None
 
-    def track_op(self, op_type, arrays=None, line_no=None):
+    def track_op(self, op_type, arrays=None, line_no=None, nodes=None, edges=None):
+        """
+        Track an operation step.
+        - For arrays: existing behavior.
+        - For small graphs: store visited nodes/edges.
+        """
         if arrays and len(arrays) > 0 and isinstance(arrays[0], list):
             main_array = arrays[0]
             length = len(main_array)
 
             if length > MAX_TRACKABLE_ARRAY_LENGTH:
-                self.final_state = main_array  
+                self.final_state = main_array
                 return
 
-            # Full snapshots for very small arrays
             if length <= MAX_ANIMATION_ARRAY_LENGTH:
                 arrays_snapshot = [copy.deepcopy(a) for a in arrays]
                 self.history.append({
@@ -49,13 +53,27 @@ class ExecutionSession:
                     "counters": self.counters.copy(),
                     "arrays": arrays_snapshot
                 })
-        else:
-            self.history.append({
-                "line_no": line_no,
-                "operation": op_type,
-                "counters": self.counters.copy(),
-                "arrays": None
-            })
+            return
+
+        if nodes is not None and edges is not None:
+            if len(nodes) <= 6 and len(edges) <= 8:
+                self.history.append({
+                    "line_no": line_no,
+                    "operation": op_type,
+                    "counters": self.counters.copy(),
+                    "nodes": copy.deepcopy(nodes),
+                    "visited_edges": copy.deepcopy(edges),
+                    "arrays": None
+                })
+            return
+
+        # --- Fallback for operations with no arrays or graph ---
+        self.history.append({
+            "line_no": line_no,
+            "operation": op_type,
+            "counters": self.counters.copy(),
+            "arrays": None
+        })
 
     # ---------------- counting functions ----------------
 

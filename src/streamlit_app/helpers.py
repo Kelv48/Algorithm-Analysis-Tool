@@ -2,6 +2,7 @@ import ast, operator, string
 from random import randint, choice, sample
 import pathlib, joblib, json, time, copy
 import streamlit as st
+import pandas as pd
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
 from algorithm_analysis_tool.ast_visitor import ASTVisitor
@@ -132,85 +133,68 @@ def extract_input_length(input_args):
 # Visualization helper functions 
 
 def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5, algorithm_name=""):
-    """
-    Visualize an algorithm step-by-step using the recorded AST history.
-    Only allows animation if the array is small enough.
-    """
     st.subheader(f"Algorithm Step-through Visualization for {algorithm_name}")
 
     if not history:
         st.info("No history to visualize.")
         return
 
-    # Determine number of arrays safely
-    first_arrays = history[0].get(array_name) or []
-    if first_arrays and len(first_arrays[0]) > max_animation_length:
-        st.warning(
-            f"Array length is {len(first_arrays[0])}. "
-            f"Animations are disabled for arrays larger than {max_animation_length} to prevent memory issues."
-        )
-        return
+    mode = "array" if any(snapshot.get(array_name) is not None for snapshot in history) else "graph"
 
-    code_lines = source_code.splitlines()
-    array_count = len(first_arrays)
+    if mode == "array":
+        first_arrays = history[0].get(array_name) or []
+        if first_arrays and len(first_arrays[0]) > max_animation_length:
+            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for large arrays.")
+            return
+        array_placeholders = [st.empty() for _ in range(len(first_arrays))]
+    else:
+        array_placeholders = [st.empty(), st.empty()]  # Graph nodes & edges
 
-    # Persistent placeholders
     code_placeholder = st.empty()
-    array_placeholders = [st.empty() for _ in range(array_count)]
     counter_placeholder = st.empty()
 
-    # Slider
-    step_slider = st.slider("Step", 0, len(history) - 1, 0, key="step_slider", format="%d")
-    prev_step = history[step_slider - 1] if step_slider > 0 else None
+    step_slider = st.slider("Step", 0, len(history)-1, 0, key=f"step_slider_{algorithm_name}")
+    prev_step = history[step_slider-1] if step_slider > 0 else None
     current_step = history[step_slider]
 
-    display_step(current_step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step)
+    display_step(
+        current_step,
+        code_lines=source_code.splitlines(),
+        code_placeholder=code_placeholder,
+        array_placeholders=array_placeholders,
+        counter_placeholder=counter_placeholder,
+        array_name=array_name,
+        prev_step=prev_step,
+        mode=mode
+    )
 
+    # Play animation button
     if st.button("Play Animation"):
+        import time
         st.info("Running…")
         progress_bar = st.progress(0)
-
-        total_steps = len(history)
         for i, step in enumerate(history):
-            prev_step = history[i - 1] if i > 0 else None
-            display_step(step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step)
-            progress_bar.progress((i + 1) / total_steps)
+            prev_step = history[i-1] if i > 0 else None
+            display_step(
+                step,
+                code_lines=source_code.splitlines(),
+                code_placeholder=code_placeholder,
+                array_placeholders=array_placeholders,
+                counter_placeholder=counter_placeholder,
+                array_name=array_name,
+                prev_step=prev_step,
+                mode=mode
+            )
+            progress_bar.progress((i+1)/len(history))
             time.sleep(delay)
-
         st.success("Animation complete!")
 
 
-def display_step(step, code_lines, code_placeholder, array_placeholders, counter_placeholder, array_name, prev_step=None):
+def display_step(step, code_lines, code_placeholder, array_placeholders=None, counter_placeholder=None, array_name="arrays", prev_step=None, mode="array"):
     """
     Display a single step in the algorithm visualization.
-    Highlights array elements that changed compared to the previous step.
+    Mode can be 'array' or 'graph'.
     """
-    arrays = step.get(array_name) or []
-    prev_arrays = (prev_step.get(array_name) or [[] for _ in arrays]) if prev_step else [[] for _ in arrays]
-
-    # Highlight changed elements
-    highlighted_arrays = []
-    for arr, prev_arr in zip(arrays, prev_arrays):
-        line = []
-        for v, pv in zip(arr, prev_arr):
-            if pv is None or v != pv:
-                line.append(f"**{v}**")  # highlight changed values
-            else:
-                line.append(str(v))
-        highlighted_arrays.append(", ".join(line))
-
-    # Display arrays in persistent placeholders
-    for placeholder, arr_line in zip(array_placeholders, highlighted_arrays):
-        placeholder.markdown(f"[{arr_line}]")
-
-    # Display counters
-    counters = step.get("counters") or {}
-    if counters:
-        import pandas as pd
-        df = pd.DataFrame(list(counters.items()), columns=["Operation", "Count"])
-        counter_placeholder.dataframe(df.set_index("Operation"))
-
-    # Highlight current line in code using st.code
     current_line_no = step.get("line_no")
     highlighted_code = ""
     for i, line in enumerate(code_lines, start=1):
@@ -218,8 +202,35 @@ def display_step(step, code_lines, code_placeholder, array_placeholders, counter
             highlighted_code += f"{line}  # <<< current line\n"
         else:
             highlighted_code += f"{line}\n"
-
     code_placeholder.code(highlighted_code, language="python")
+
+    if mode == "array" and array_placeholders:
+        arrays = step.get(array_name) or []
+        prev_arrays = (prev_step.get(array_name) or [[] for _ in arrays]) if prev_step else [[] for _ in arrays]
+        highlighted_arrays = []
+        for arr, prev_arr in zip(arrays, prev_arrays):
+            line = []
+            for v, pv in zip(arr, prev_arr):
+                if pv is None or v != pv:
+                    line.append(f"**{v}**")
+                else:
+                    line.append(str(v))
+            highlighted_arrays.append(", ".join(line))
+
+        for placeholder, arr_line in zip(array_placeholders, highlighted_arrays):
+            placeholder.markdown(f"[{arr_line}]")
+    elif mode == "graph":
+        nodes = step.get("nodes", [])
+        visited_edges = step.get("visited_edges", [])
+        if array_placeholders:
+            array_placeholders[0].markdown(f"**Nodes visited:** {nodes}")
+            if len(array_placeholders) > 1:
+                array_placeholders[1].markdown(f"**Edges traversed:** {visited_edges}")
+
+    counters = step.get("counters") or {}
+    if counters and counter_placeholder:
+        df = pd.DataFrame(list(counters.items()), columns=["Operation", "Count"])
+        counter_placeholder.dataframe(df.set_index("Operation"))
 
 
 def extract_source_for_algorithm(algo_path, main_func_name, helper_map=None):
@@ -247,11 +258,9 @@ def extract_source_for_algorithm(algo_path, main_func_name, helper_map=None):
 
     for node in tree.body:
         if isinstance(node, ast.FunctionDef) and node.name in needed_funcs:
-            # AST provides line numbers (1-indexed)
             start = node.lineno - 1
             end = getattr(node, "end_lineno", None)
             if end is None:
-                # Fallback: take until next function or end of file
                 next_fn_lines = [n.lineno - 1 for n in tree.body if isinstance(n, ast.FunctionDef) and n.lineno > node.lineno]
                 end = next_fn_lines[0] if next_fn_lines else len(src_lines)
             blocks.append("".join(src_lines[start:end]))

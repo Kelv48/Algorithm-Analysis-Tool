@@ -11,7 +11,8 @@ from helpers import (
     run_ast_analysis, save_cache, load_cache, drop_cache, 
     sorting_generation, search_generation, graph_generation,
       activity_generation, save_recent_run, load_recent_runs, 
-      extract_source_for_algorithm, load_most_recent_run
+      extract_source_for_algorithm, load_most_recent_run,
+      visualize_algorithm
 )
 
 
@@ -341,14 +342,10 @@ with tab1:
             st.session_state.arr_length = payload.get("meta", {}).get("length")
             if payload:
                 st.session_state.counters = payload["counters"]
-                st.session_state.status = f"Analysis of '{selected_function}' completed ✅"
-                # Prepare input for saving recent runs
                 saved_input = payload["input"]
 
-                # If this is a graph, extract nodes and edges
                 if group == "Graph" and isinstance(st.session_state.generated_input, dict):
                     g = st.session_state.generated_input
-                    # Ensure keys exist
                     nodes = g.get("nodes", [])
                     edges = g.get("edges", [])
                     saved_input = {"nodes": nodes, "edges": edges}
@@ -413,9 +410,6 @@ with tab2:
 # Tab 3: History / Step Visualization
 # -----------------------------
 with tab3:
-
-    # Allow step visualization for graphs however dont show edges or nodes,
-    # For sorting/searching/scheduling show both step visualization and matching array snapshots
     st.header("Recent Runs & Algorithm Visualization")
 
     # Load last run
@@ -427,13 +421,18 @@ with tab3:
         helper_map = {"merge_sort": ["merge"]}
         source_code = extract_source_for_algorithm(algo_path, algorithm_name, helper_map=helper_map)
 
-        # Only allow animation if arrays exist in history
         can_visualize = any(snapshot.get("arrays") for snapshot in history)
+
+        if not can_visualize:
+            for snapshot in history:
+                if snapshot.get("nodes") is not None or snapshot.get("visited_edges") is not None:
+                    can_visualize = True
+                    break
+
         if can_visualize and source_code.strip():
-            from helpers import visualize_algorithm
             visualize_algorithm(history, source_code, algorithm_name=algorithm_name)
         else:
-            st.warning("Animation cannot run: input arrays were too large, so snapshots were not stored.")
+            st.warning("Animation cannot run: input arrays were too large or graph too big.")
     else:
         st.info("No recent runs to visualize.")
 
@@ -452,11 +451,9 @@ with tab3:
             input_meta = run.get("input_meta", {})
             input_data = run.get("input", {})
 
-            # --- Normalize input for nodes/edges ---
-            nodes_str = ""  # default empty for non-graphs
+            nodes_str = ""
             edges_list = []
             is_graph = False
-            nodes = []
 
             if isinstance(input_data, dict) and "nodes" in input_data and "edges" in input_data:
                 nodes = input_data.get("nodes", [])
@@ -472,10 +469,9 @@ with tab3:
                         for t in tos:
                             edges_list.append([f, t])
                     is_graph = True
-            # else: non-graph input → nodes_str remains empty
-                    nodes_str = str(input_data[0][:10]) if isinstance(input_data[0], list) else str(input_data[0])
+                else:
+                    nodes_str = ""
 
-            # --- Main row for the counters table ---
             rows.append({
                 "Algorithm": run.get("algorithm", "-"),
                 "Mode": run.get("params", {}).get("mode", "-"),
@@ -483,23 +479,20 @@ with tab3:
                 "Comparisons": counters.get("comparisons", 0),
                 "Assignments": counters.get("assignments", 0),
                 "Loop Iter": counters.get("loop_iterations", 0),
-                "Nodes": nodes_str
+                "Nodes": nodes_str if is_graph else ""
             })
 
-            # --- Store edges table with flag ---
             if is_graph and edges_list and len(nodes) <= 6 and len(edges_list) <= 8:
                 edge_tables.append((run.get("algorithm", "-"), pd.DataFrame(edges_list, columns=["From", "To"]), True))
             else:
                 edge_tables.append((run.get("algorithm", "-"), None, is_graph))
 
-        # --- Display main counters table with heatmap ---
         df = pd.DataFrame(rows)
         st.dataframe(
             df.style.background_gradient(cmap="Blues", subset=["Comparisons", "Assignments", "Loop Iter"]),
             use_container_width=True
         )
 
-        # --- Display edges tables for small graphs ---
         for algo_name, edges_df, is_graph_flag in edge_tables:
             if edges_df is not None and not edges_df.empty:
                 st.markdown(f"**Edges for {algo_name}:**")
@@ -508,7 +501,4 @@ with tab3:
                 st.info(f"Edges for {algo_name} not displayed (graph too large)")
 
     else:
-        st.info("No recent runs to display")
-
-
-# Quick sort, merge sort, dfs, currently broken
+        st.info("No recent runs to display.")
