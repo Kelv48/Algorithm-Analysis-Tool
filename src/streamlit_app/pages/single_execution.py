@@ -453,7 +453,7 @@ with tab3:
             input_data = run.get("input", {})
 
             # --- Normalize input for nodes/edges ---
-            nodes_str = "-"
+            nodes_str = ""  # default empty for non-graphs
             edges_list = []
             is_graph = False
             nodes = []
@@ -472,7 +472,7 @@ with tab3:
                         for t in tos:
                             edges_list.append([f, t])
                     is_graph = True
-                else:
+            # else: non-graph input → nodes_str remains empty
                     nodes_str = str(input_data[0][:10]) if isinstance(input_data[0], list) else str(input_data[0])
 
             # --- Main row for the counters table ---
