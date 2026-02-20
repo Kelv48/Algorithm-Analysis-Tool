@@ -4,10 +4,9 @@ import pathlib, joblib, json, time, copy
 import streamlit as st
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
-from algorithm_analysis_tool.ast_visitor import (
-    ASTVisitor, count_arith, count_assign, count_call,
-    count_compare, count_index, count_loop_iteration, not_in
-)
+from algorithm_analysis_tool.ast_visitor import ASTVisitor
+from algorithm_analysis_tool.execution_session import ExecutionSession, not_in
+
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
@@ -16,15 +15,16 @@ algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 
 def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, **kwargs):
     """
-    Execute an algorithm with AST instrumentation, recording operation counts
-    and maintaining a local history of operations for visualization/animation.
+    Execute an algorithm with AST instrumentation using ExecutionSession,
+    recording operation counts and maintaining a local history of operations
+    for visualization/animation.
 
     Parameters:
         func_name (str): Name of the algorithm function in algorithms.py
         *args: Positional arguments for the algorithm
         input_arr (list, optional): Pre-generated input array
         input_generated (bool): Whether input_arr is provided
-        input_mode (str, optional): The input generation mode for caching
+        input_mode (str, optional): Input generation mode for caching
         **kwargs: Other keyword arguments for the algorithm function
 
     Returns:
@@ -39,25 +39,8 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             }
         }
     """
-    # Local counters and history
-    counters = {
-        "assignments": 0,
-        "indexing": 0,
-        "function_calls": 0,
-        "returns": 0,
-        "comparisons": 0,
-        "arithmetic": 0,
-        "loop_nodes": 0,
-        "loop_iterations": 0
-    }
-    history = []
+    session = ExecutionSession()
 
-    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
-    search_algos = {"linear_search", "binary_search"}
-    graph_algos = {"dfs", "bfs"}
-    activity_algos = {"activity_selection"}
-
-    # Load and parse source code
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())
 
@@ -70,30 +53,26 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     needed_functions = resolve_helpers(func_name, function_map)
     selected_nodes = [function_map[name] for name in function_map if name in needed_functions]
 
-    # Build module with only required functions
     module_ast = ast.Module(body=selected_nodes, type_ignores=[])
-    visitor = ASTVisitor(counters)
+
+    visitor = ASTVisitor(session)
     module_ast = visitor.visit(module_ast)
     ast.fix_missing_locations(module_ast)
 
-    # Prepare execution environment with local history
     exec_globals = {
-        "COUNTERS": counters,
-        "HISTORY": history,
-        "count_arith": count_arith,
-        "count_assign": count_assign,
-        "count_call": count_call,
-        "count_compare": count_compare,
-        "count_index": count_index,
-        "count_loop_iteration": count_loop_iteration,
+        "SESSION": session,            
+        "arrays": [input_arr] if input_arr else [],
         "operator": operator,
-        "not_in": not_in,
-        "arrays": [],
+        "not_in": not_in
     }
 
-    # Compile and execute AST
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
+
+    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
+    search_algos = {"linear_search", "binary_search"}
+    graph_algos = {"dfs", "bfs"}
+    activity_algos = {"activity_selection"}
 
     # Prepare input for the function
     if input_generated:
@@ -117,9 +96,9 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     exec_globals[func_name](*final_args, **kwargs)
 
     return {
-        "counters": counters,
+        "counters": session.counters,
         "input": final_args,
-        "history": history,
+        "history": session.history,
         "meta": {
             "length": extract_input_length(final_args),
             "algorithm": func_name,
