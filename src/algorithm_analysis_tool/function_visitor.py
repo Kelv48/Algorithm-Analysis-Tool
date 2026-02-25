@@ -1,8 +1,8 @@
 import ast
 
 class FunctionDependencyVisitor(ast.NodeVisitor):
-    def __init__(self, know_functions):
-        self.known_functions = know_functions
+    def __init__(self, known_functions):
+        self.known_functions = known_functions
         self.called = set()
 
     def visit_Call(self, node):
