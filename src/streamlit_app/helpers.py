@@ -271,7 +271,7 @@ def extract_source_for_algorithm(algo_path, main_func_name, helper_map=None):
 
 # Note
 # Joblib maintains quick cache for per algo cache
-# Json maintains detailed cache for resent history
+# Json maintains detailed cache for recent history
 
 # Cache Configs 
 
