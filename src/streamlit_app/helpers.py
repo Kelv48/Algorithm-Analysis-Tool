@@ -431,6 +431,8 @@ def search_generation(func_name, n_range, arr_length,
         arr = base_array
 
     else:
+        if arr_length > n_range:
+            raise ValueError("arr_length cannot exceed n_range when generating unique search array values")
         arr = sample(range(1, n_range + 1), arr_length)
 
     # --- Binary search requires sorted input ---
