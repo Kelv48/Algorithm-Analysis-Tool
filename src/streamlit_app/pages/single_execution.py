@@ -257,8 +257,7 @@ with tab1:
             except Exception as e:
                 st.error(f"Error in user function: {e}")
                 user_func = None
-
-     # Reset generated input if parameters changed
+    # Reset generated input if parameters changed
     if st.session_state.generated_params != current_params:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
