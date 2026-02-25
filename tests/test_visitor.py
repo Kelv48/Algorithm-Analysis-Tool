@@ -6,16 +6,36 @@ ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 sys.path.insert(0, str(ast_visitor_path))
 from algorithm_analysis_tool.execution_session import ExecutionSession
 
+def assert_last_history(session, op_type, index=None, array_len=None, nodes_len=None, edges_len=None):
+    assert session.history
+    last = session.history[index]
+    assert last["operation"] == op_type
+    if array_len is not None:
+        arrays = last.get("arrays")
+        assert arrays is not None
+        assert len(arrays[0]) == array_len
+    if nodes_len is not None:
+        nodes = last.get("nodes")
+        assert nodes is not None
+        assert len(nodes) == nodes_len
+    if edges_len is not None:
+        edges = last.get("visited_edges")
+        assert edges is not None
+        assert len(edges) == edges_len
+
 def test_simple_assignment():
     session = ExecutionSession()
     counters, history = session.run("x = 5")
     assert counters["assignments"] == 1
+    assert_last_history(session, "assignment", -1)
 
 def test_simple_arithmetic():
     session = ExecutionSession()
     counters, history = session.run("x = 1 + 2")
     assert counters["arithmetic"] == 1
     assert counters["assignments"] == 1
+    assert_last_history(session, "arithmetic", -2)
+    assert_last_history(session, "assignment", -1)
 
 def test_nested_arithmetic():
     session = ExecutionSession()
