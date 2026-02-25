@@ -1,162 +1,27 @@
-# Roadmap / Planned Improvements
-
-This section outlines planned features, architectural decisions, and future improvements for the project. Items listed here are either under consideration or scheduled for future implementation.
-
----
-
-## 1. Project Restructuring
-
-### 1.1 Convert Test Code into Full Project Layout
-
-Restructure the current test-based implementation into a standard Python project layout. This will improve maintainability, modularity, and scalability.
-
-Planned changes include:
-
-- Separating core logic, runtime counters, and CLI utilities
-- Introducing a dedicated `src/` directory structure
-- Adding a `tests/` directory for automated testing
-- Preparing the project for packaging and distribution
-
----
-
-## 2. Python Package & Versioning
-
-### 2.1 Create an Installable Python Package
-
-Convert the project into an installable Python package using modern packaging standards.
-
-Planned tasks:
-
-- Create `pyproject.toml` or `setup.py`
-- Add versioning support
-- Define package metadata (name, description, author)
-- Configure build tools (setuptools / poetry)
-
----
-
-### 2.2 Dependency Management
-
-Establish a dependency management system to ensure reproducible builds and environments.
-
-This includes:
-
-- Defining required packages
-- Creating a `requirements.txt` or dependency lock file
-- Supporting virtual environments
-
----
-
-## 3. Core Feature Expansion
-
-### 3.1 Full File Analysis Support
-
-Extend the analysis engine to operate on entire Python files instead of isolated functions.
-
-This will allow:
-
-- Whole-program instrumentation
-- Cross-function operation tracking
-- Realistic runtime behavior analysis
-
----
-
-### 3.2 External File Input Support
-
-Allow users to provide a target Python file as input to the tool.
-
-Planned usage methods:
-
-- Command-line argument input
-- Programmatic API calls from external scripts
-- Configuration file support
-
----
-
-### 3.3 Comprehensive Documentation
-
-Expand documentation to clearly describe:
-
-- The purpose of each counter function
-- The role of each AST transformation method
-- Internal data flow and execution pipeline
-- Usage examples and expected output
-
-This will improve usability and academic reproducibility.
-
----
-
-## 4. Entry Point Design
-
-Investigate multiple entry point options for interacting with the tool.
-
-Potential interfaces include:
-
-- Command Line Interface (CLI)
-- Python API module
-- Script-based invocation
-- Web-based interface (optional)
-
-The final interface design will depend on deployment goals and user requirements.
-
----
-
-## 5. Deployment & Hosting Strategy
-
-Determine how the project will be deployed and served in production environments.
-
----
-
-### 5.1 Continuous Integration (CI) Integration
-
-Investigate linking the project to a Jenkins virtual machine for automated builds and updates.
-
-Planned capabilities:
-
-- Automatic testing on commits
-- Build verification
-- Deployment triggers
-
----
-
-### 5.2 Virtual Machine Hosting
-
-Explore hosting the project on a dedicated virtual machine.
-
-This may include:
-
-- Public access deployment
-- Internal research environment hosting
-- Remote API access
-
----
-
-### 5.3 DNS & Networking Configuration
-
-Clarify network requirements for project access and service discovery.
-
-Topics to evaluate:
-
-- Domain name registration vs internal DNS routing
-- Service discovery mechanisms
-- Public vs private access configuration
-
----
-
-## Status
-
-All items listed in this section are **under review or pending implementation** and may be adjusted based on project scope, performance requirements, and academic constraints.
-
-
-
-### 6. Open Questions and Design Considerations
-
 - Identify inputs that the tool cannot reliably handle and that are explicitly out of scope for evaluation.
 - Assess, given the current analysis machinery, how useful the tool will be for students in educational settings.
-- Test Streamlit components before the next milestone (e.g., Thursday) to validate the interactive interface.
 - Document how operations and events are being counted during analysis.
 - Characterize computational complexity across a representative range of input sizes and patterns.
-- Decide whether users can enter arbitrary code/inputs or must choose from a curated, preselected set of examples.
 - Define input configuration parameters, including:
     - Determine typical list lengths to support.
     - Specify how input data is generated.
     - Decide on the number of iterations to run per experiment.
+
+- Performance over multiple input sizes
+- Algorithm Efficiency
+- Export/Report
+- Custom algorithm input (i.e allow users to enter their own code)
+
+- Implement a bigO complexity check using the multi runs
+    - Could use the same arrays and show N, nlogn, n^2, n! etc and show the algo you ran and where it falls within these baselines
+
+- Fix issue with dfs
+- Allow step through history of graph algos
+    - Dont show the graph
+- Add in matrix algo and generation method
+- For multi gen allow users to pick different options and take the dot product of them as our different configurations, will be the amount of workers
+    - If the amount of works is above a certain amount assign jobs an id and create a queue where we can pass jobs into the workers as they are freed
+    - Then maintiain track of jobs in the queue to show a progress bar of jobs waiting to execute (i.e, jobs waiting to execute)
+    - Pass the id into run ast and return it with the result so that we have a way of mapping outputs in a useful way (i.e, if we run merge and bubble) only compare the ones that used the same list
+    - Also if we pick 2 different algos for each of the generation choices use that list on all the possible algos (i.e, if we choose merge/bubble and random/edge with 2 different options for ranges we want 4 lists to be created and each algo to be ran on each of the 4 lists and then we want each run of the same list to be sequential, so id merge[list1], id bubble[list1] and so on) 
+    

@@ -1,12 +1,14 @@
 import ast, sys, argparse
 import operator
 
+from .ast_helpers import resolve_helpers
 from .ast_visitor import (
     ASTVisitor, count_arith, count_assign, count_call,
-    count_compare, count_index, count_loop_iteration, reset_counters
+    count_compare, count_index, count_loop_iteration
 )
 
-counters = {
+def main():
+    counters = {
     "assignments": 0,
     "indexing": 0,
     "function_calls": 0,
@@ -16,10 +18,6 @@ counters = {
     "loop_nodes": 0,
     "loop_iterations": 0
     }
-
-
-def main():
-    counters = reset_counters(counters)
     parser = argparse.ArgumentParser(description="Analyze a Python algorithm for arithmetic operations.")
     parser.add_argument("file", help="Path to the Python file to analyze.")
     args = parser.parse_args()
@@ -37,11 +35,27 @@ def main():
         print("No functions found in the file.")
         sys.exit(1)
 
+    # List functions with numbers
     print("Available functions:")
-    for name in function_map:
-        print("-", name)
+    for i, name in enumerate(function_map, 1):
+        print(f"{i}. {name}")
 
-    choice = input("Which function do you want to run? ")
+    # User picks a number
+    choice_index = input("Select a function by number: ")
+    try:
+        choice_index = int(choice_index)
+        if not 1 <= choice_index <= len(function_map):
+            raise ValueError
+    except ValueError:
+        print("Invalid selection")
+        sys.exit(1)
+
+    # Map number → function name
+    function_names = list(function_map.keys())
+    choice = function_names[choice_index - 1]
+
+    # Resolve helpers
+    needed_functions = resolve_helpers(choice, function_map)
 
     if choice not in function_map:
         print("Invalid choice")
@@ -58,32 +72,65 @@ def main():
         "operator": operator
     }
 
-    exec(compile(tree, filename="<ast>", mode="exec"), exec_globals)
+    selected_nodes = [
+        function_map[name]
+        for name in function_map
+        if name in needed_functions
+    ]
+
+    module_ast = ast.Module(body=selected_nodes, type_ignores=[])
 
     visitor = ASTVisitor(counters)
-    instrumented_node = visitor.visit(function_map[choice])
-    ast.fix_missing_locations(instrumented_node)
+    module_ast = visitor.visit(module_ast)
+    ast.fix_missing_locations(module_ast)
 
-    module_ast = ast.Module(body=[instrumented_node], type_ignores=[])
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
+    exec(code_obj, exec_globals)
 
-    # Prepare globals for execution
+    if choice in {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}:
+        arr = [2, 5, 3, 1, 4]
+        result = exec_globals[choice](arr)
 
-    result = exec_globals[choice](arr)
+    elif choice in {"linear_search", "binary_search"}:
+        arr = [1, 3, 5, 7, 9, 11, 13]
+        target = 7
+        result = exec_globals[choice](arr, target)
+
+    elif choice in {"dfs", "bfs"}:
+        graph = {
+            'A': ['B', 'C'],
+            'B': ['D', 'E'],
+            'C': ['F'],
+            'D': [],
+            'E': ['F'],
+            'F': []
+        }
+        start = 'A'
+        result = exec_globals[choice](graph, start)
+
+    elif choice in {"fib", "fib_dp"}:
+        n = 10
+        result = exec_globals[choice](n)
+
+    elif choice == "activity_selection":
+        activities = [
+            (1, 4),
+            (3, 5),
+            (0, 6),
+            (5, 7),
+            (8, 9),
+            (5, 9),
+        ]
+        result = exec_globals[choice](activities)
+
+    elif choice == "greatest_common_divisor":
+        result = exec_globals[choice](48, 18)
+
+    else:
+        raise ValueError(f"No test input defined for {choice}")
+
     print("Result:", result)
 
-    # Example input array for algorithms that need it
-    from random import randint
-    arr = []
-
-    for i in range(10000):
-        i = randint(1, 500)
-        arr.append(i)
-    # arr = [2, 5, 3, 1, 4]
-
-    # Call the selected function dynamically
-    exec_globals[choice](arr)
-    # print("Result:", result)
 
     # Print analysis counters
     print("\nAnalysis Results:")
