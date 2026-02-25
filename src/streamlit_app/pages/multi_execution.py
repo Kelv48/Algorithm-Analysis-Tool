@@ -54,7 +54,6 @@ st.session_state.setdefault("jobs", {})
 st.title("Multi Execution Page")
 
 # Sidebar Controls
-
 with st.sidebar:
     st.header("Configuration")
     group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
