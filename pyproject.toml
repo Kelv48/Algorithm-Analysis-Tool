@@ -17,6 +17,7 @@ dependencies = [
     "pandas",
     "plotly",
     "streamlit_autorefresh",
+    "streamlit-option-menu",
     "matplotlib",
     "pytest",
     "joblib"
