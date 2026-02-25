@@ -15,5 +15,5 @@ st.write(f"Current page: {page}")
 # It will also be useful for showing how the performance of an algorithm can vary across different runs and how it can be affected by factors 
 # like garbage collection, etc.
 
-# Akso can be used to calculate the complexity of the algorithm by running it on different input sizes and then showing how the performance 
+# Also can be used to calculate the complexity of the algorithm by running it on different input sizes and then showing how the performance 
 # changes with input size..
