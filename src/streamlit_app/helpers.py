@@ -14,7 +14,7 @@ algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 
 # Ast Runner
 
-def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, **kwargs):
+def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, **kwargs):
     """
     Execute an algorithm with AST instrumentation using ExecutionSession,
     recording operation counts and maintaining a local history of operations
@@ -104,7 +104,8 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             "length": extract_input_length(final_args),
             "algorithm": func_name,
             "input_mode": input_mode
-        }
+        },
+        "job_id" : job_id
     }
 
 

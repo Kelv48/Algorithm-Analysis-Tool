@@ -362,6 +362,7 @@ with tab1:
                 st.session_state.status = f"Function '{selected_function}' not found"
             st.session_state.future = None
             st.session_state.is_running = False
+            st.session_state.status = "Completed"
 
     if st.session_state.status:
         st.info(st.session_state.status)
