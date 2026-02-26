@@ -75,7 +75,6 @@ st.title("Algorithm Analysis Tool: Single Execution")
 
 
 with st.sidebar:
-    st.divider()
     st.title("Controls")
     group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
     selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])

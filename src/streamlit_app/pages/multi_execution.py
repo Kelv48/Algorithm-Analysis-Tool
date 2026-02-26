@@ -42,6 +42,7 @@ st.session_state.setdefault("executor", get_executor())
 st.session_state.setdefault("job_counter", itertools.count(1))
 st.session_state.setdefault("jobs", {})
 st.session_state.setdefault("job_queue", [])
+st.session_state.setdefault("shared_array", None)
 
 
 show_sidebar()
@@ -61,49 +62,53 @@ with tab1:
     # Array-Based Config
     if group in {"Sorting", "Searching", "Scheduling"}:
 
-        n_values = st.multiselect(
-            "Max Integer Values (n)",
-            [50, 100, 200, 500, 1000],
-            default=[100]
-        )
-
-        arr_lengths = st.multiselect(
-            "Array Lengths",
-            [50, 100, 200, 500],
-            default=[100]
-        )
-
-        modes = st.multiselect(
-            "Generation Modes",
-            ["random", "guided", "evolution"],
-            default=["random"]
-        )
-
+        n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+        arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+        modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
 
     # Graph Config
     else:
         st.subheader("Graph Configuration")
 
-        num_nodes = st.multiselect(
-            "Number of Nodes",
-            [4, 6, 8, 10],
-            default=[6]
-        )
-
-        num_edges = st.multiselect(
-            "Number of Edges",
-            [4, 8, 12, 16],
-            default=[8]
-        )
-
-        graph_type = st.selectbox(
-            "Graph Type",
-            ["Random", "Connected", "Tree"]
-        )
-
+        num_nodes = st.multiselect("Number of Nodes", [4, 6, 8, 10], default=[6])
+        num_edges = st.multiselect("Number of Edges", [4, 8, 12, 16], default=[8])
+        graph_type = st.selectbox("Graph Type", ["Random", "Connected", "Tree"])
         directed = st.checkbox("Directed Graph", value=True)
-
         modes = ["graph"]
+
+
+    # Could group the jobs based on input config, and then group the results
+    # So show the distribution of operations for each algorithm, but also show how it changes based on input size/type
+    # Run algos on the same inputs to compare them more directly
+    # So if we alter how the cartesian product operates so that it still generates all combinations,
+    # but it also groups by the input config - and uses each generated list on all algos before moving to the next input config
+    # Which means we wont need to fix the shared array input
+
+    # # Shared Inputs
+    # st.subheader("Shared Input Array (Optional)")
+
+    # use_shared_array = st.checkbox("Use a shared array for all selected algorithms?", value=False)
+
+    # if use_shared_array:
+    #     shared_array_mode = st.radio("Array Input Method", ["Generate Random Array", "Custom Input Array"])
+
+    #     if shared_array_mode == "Generate Random Array":
+    #         shared_length = st.slider("Array Length", 1, 1000, 100)
+    #         shared_max = st.slider("Max Integer Value", 1, 1000, 100)
+    #         if st.button("Generate Shared Array"):
+    #             st.session_state.shared_array = sorting_generation(func_name=selected_functions[0],n_range=shared_max, arr_length=shared_length, mode="random")
+    #             st.success(f"Generated shared array of length {shared_length}.")
+    #     elif shared_array_mode == "Custom Input Array":
+    #         user_input = st.text_area("Enter numbers separated by commas", value="1,2,3,4,5")
+    #         if st.button("Save Custom Array"):
+    #             try:
+    #                 st.session_state.shared_array = [int(x.strip()) for x in user_input.split(",")]
+    #                 st.success("Custom shared array saved.")
+    #             except ValueError:
+    #                 st.error("Invalid input. Enter integers separated by commas.")
+
+    # if st.session_state.shared_array:
+    #     st.info(f"Shared Array: {st.session_state.shared_array[:20]}{'...' if len(st.session_state.shared_array) > 20 else ''}")
 
 
     # Build Job Queue
