@@ -107,8 +107,9 @@ streamlit run src/streamlit_app/app.py --client.showSidebarNavigation=False
 ```sh
 ./run_streamlit.sh
 ```
+---
 
-## Testing
+## Testing
 Unit tests are provided to ensure the correct counting of operations
 - Assignments, arithmetic and comparisons
 - Indexing
