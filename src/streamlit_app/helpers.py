@@ -12,9 +12,17 @@ root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 
+
+def apply_seed(seed):
+    if seed:
+        import random
+        import numpy as np
+        random.seed(seed)
+        np.random.seed(seed)
+
 # Ast Runner
 
-def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, **kwargs):
+def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, random_seed=0, **kwargs):
     """
     Execute an algorithm with AST instrumentation using ExecutionSession,
     recording operation counts and maintaining a local history of operations
@@ -40,6 +48,8 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             }
         }
     """
+    if random_seed:
+        apply_seed(random_seed)
     session = ExecutionSession()
 
     with open(algo_path, "r") as f:

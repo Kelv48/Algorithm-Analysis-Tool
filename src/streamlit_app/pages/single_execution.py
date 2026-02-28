@@ -12,7 +12,7 @@ from helpers import (
     sorting_generation, search_generation, graph_generation,
       activity_generation, save_recent_run, load_recent_runs, 
       extract_source_for_algorithm, load_most_recent_run,
-      visualize_algorithm
+      visualize_algorithm, apply_seed
 )
 
 
@@ -59,6 +59,7 @@ st.session_state.setdefault("input_generated", False)
 st.session_state.setdefault("generated_input", None)
 st.session_state.setdefault("generated_params", None)
 st.session_state.setdefault("arr_length", None)
+st.session_state.setdefault("last_payload", None)
 
 # -----------------------------
 # Load AST once
@@ -163,7 +164,8 @@ with tab1:
             mode_input = st.radio(
                 "Input Generation Mode",
                 ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
-                horizontal=True
+                horizontal=True,
+                help="Choose an mode to be used to generate the array"
             )
 
             mode_map = {
@@ -245,6 +247,75 @@ with tab1:
         st.caption("Configured Parameters:")
         st.json(current_params)
 
+        with st.expander("Advanced Settings"):
+
+            col1, col2 = st.columns(2)
+            with col1:
+                use_shared_input = st.checkbox(
+                    "Use shared input across algorithms",
+                    value=False,
+                    help="Reuses the same generated array when comparing multiple algorithms."
+                )
+
+                persist_input = st.checkbox(
+                    "Persist generated input between runs",
+                    value=True,
+                    help="Prevents auto-regeneration when parameters change."
+                )
+
+                show_raw_ast = st.checkbox(
+                    "Show raw AST counters payload",
+                    value=False
+                )
+
+            with col2:
+                random_seed = st.number_input(
+                    "Random Seed (0 = None)",
+                    min_value=0,
+                    value=0,
+                    help="Set a fixed seed for reproducibility."
+                )
+
+                disable_history = st.checkbox(
+                    "Disable history recording",
+                    value=False
+                )
+
+            # Graph-specific advanced options
+            if group == "Graph":
+                st.divider()
+                st.subheader("Graph Advanced")
+
+                force_connected = st.checkbox(
+                    "Force graph connectivity",
+                    value=False
+                )
+
+                prevent_self_loops = st.checkbox(
+                    "Prevent self-loops",
+                    value=True
+                )
+
+                show_adj_matrix = st.checkbox(
+                    "Display adjacency matrix after generation",
+                    value=False
+                )
+
+                graph_params.update({
+                    "force_connected": force_connected,
+                    "prevent_self_loops": prevent_self_loops
+                })
+
+            # Store advanced state
+            st.session_state.advanced_settings = {
+                "use_shared_input": use_shared_input,
+                "persist_input": persist_input,
+                "show_raw_ast": show_raw_ast,
+                "random_seed": random_seed,
+                "disable_history": disable_history
+            }
+
+
 
         if group in {"Sorting", "Searching", "Scheduling"}:
             n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
@@ -302,6 +373,9 @@ with tab1:
 
         with col1:
             # --- Generate Input Data ---
+            random_seed = st.session_state.advanced_settings.get("random_seed", 0)
+            if random_seed:
+                apply_seed(random_seed)
             if st.button("Generate New Input Data", disabled=disabled):
                 selected_function = run_args[0]
                 base_array = None
@@ -348,7 +422,8 @@ with tab1:
                     *run_args,
                     input_arr=st.session_state.generated_input if st.session_state.input_generated else None,
                     input_generated=st.session_state.input_generated,
-                    input_mode = mode
+                    input_mode = mode,
+                    random_seed = st.session_state.advanced_settings.get("random_seed", 0)
                 )
 
                 st.session_state.future = future
@@ -373,6 +448,7 @@ with tab1:
 
     if st.session_state.future and st.session_state.future.done():
         payload = st.session_state.future.result()
+        st.session_state.last_payload = payload
 
         st.session_state.arr_length = payload.get("meta", {}).get("length")
         st.session_state.counters = payload["counters"]
@@ -384,21 +460,27 @@ with tab1:
                 nodes = g.get("nodes", [])
                 edges = g.get("edges", [])
                 saved_input = {"nodes": nodes, "edges": edges}
-            save_recent_run(
-                payload["meta"]["algorithm"],
-                n if "n" in locals() else None,
-                arr if "arr" in locals() else None,
-                saved_input,
-                payload["counters"],
-                mode=mode, 
-                history=payload.get("history", [])
-            )
-            save_cache(cache_key, payload, mode=mode)
+            if not st.session_state.advanced_settings.get("disable_history", False):
+                save_recent_run(
+                    payload["meta"]["algorithm"],
+                    n if "n" in locals() else None,
+                    arr if "arr" in locals() else None,
+                    saved_input,
+                    payload["counters"],
+                    mode=mode, 
+                    history=payload.get("history", [])
+                )
+                save_cache(cache_key, payload, mode=mode)
         else:
             st.session_state.status = f"Function '{selected_function}' not found"
         st.session_state.future = None
         st.session_state.is_running = False
-        st.success("🟢 Analysis Complete")
+        st.success("🟢 Analysis Complete")#
+    
+    if (
+    st.session_state.get("last_payload") is not None and st.session_state.advanced_settings.get("show_raw_ast", False)):
+        st.subheader("Raw AST Payload")
+        st.json(st.session_state.last_payload)
 
     if st.session_state.status:
         st.info(st.session_state.status)
