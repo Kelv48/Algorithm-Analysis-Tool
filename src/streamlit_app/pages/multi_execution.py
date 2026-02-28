@@ -111,40 +111,6 @@ with tab1:
             }
 
 
-        # Could group the jobs based on input config, and then group the results
-        # So show the distribution of operations for each algorithm, but also show how it changes based on input size/type
-        # Run algos on the same inputs to compare them more directly
-        # So if we alter how the cartesian product operates so that it still generates all combinations,
-        # but it also groups by the input config - and uses each generated list on all algos before moving to the next input config
-        # Which means we wont need to fix the shared array input
-
-        # # Shared Inputs
-        # st.subheader("Shared Input Array (Optional)")
-
-        # use_shared_array = st.checkbox("Use a shared array for all selected algorithms?", value=False)
-
-        # if use_shared_array:
-        #     shared_array_mode = st.radio("Array Input Method", ["Generate Random Array", "Custom Input Array"])
-
-        #     if shared_array_mode == "Generate Random Array":
-        #         shared_length = st.slider("Array Length", 1, 1000, 100)
-        #         shared_max = st.slider("Max Integer Value", 1, 1000, 100)
-        #         if st.button("Generate Shared Array"):
-        #             st.session_state.shared_array = sorting_generation(func_name=selected_functions[0],n_range=shared_max, arr_length=shared_length, mode="random")
-        #             st.success(f"Generated shared array of length {shared_length}.")
-        #     elif shared_array_mode == "Custom Input Array":
-        #         user_input = st.text_area("Enter numbers separated by commas", value="1,2,3,4,5")
-        #         if st.button("Save Custom Array"):
-        #             try:
-        #                 st.session_state.shared_array = [int(x.strip()) for x in user_input.split(",")]
-        #                 st.success("Custom shared array saved.")
-        #             except ValueError:
-        #                 st.error("Invalid input. Enter integers separated by commas.")
-
-        # if st.session_state.shared_array:
-        #     st.info(f"Shared Array: {st.session_state.shared_array[:20]}{'...' if len(st.session_state.shared_array) > 20 else ''}")
-
-
         # Build Job Queue
         if st.button("Add Jobs to Queue"):
             if not selected_functions:
@@ -307,6 +273,38 @@ with tab1:
                     job_data["result"] = {"error": str(e)}
 
 
+    def collect_completed_results():
+        rows = []
+
+        for job_id, job_data in st.session_state.jobs.items():
+            if job_data["status"] == "completed":
+                counters = job_data["result"]["counters"]
+
+                total_ops = sum(counters.values())
+
+                row = {
+                    "job_id": job_id,
+                    "algorithm": job_data["algorithm"],
+                    "type": job_data["type"],
+                    "total_operations": total_ops
+                }
+
+                if job_data["type"] == "array":
+                    row["n"] = job_data["n"]
+                    row["arr_length"] = job_data["arr_length"]
+                    row["mode"] = job_data["mode"]
+                else:
+                    gp = job_data["graph_params"]
+                    row["nodes"] = gp["num_nodes"]
+                    row["edges"] = gp["num_edges"]
+
+                rows.append(row)
+
+        if rows:
+            return pd.DataFrame(rows)
+
+        return pd.DataFrame()
+
 
     # Execution Dashboard
     st.header("Execution Dashboard")
@@ -379,7 +377,53 @@ with tab1:
     else:
         st.session_state.pop("multi_refresh", None)
 
+    st.divider()
+    st.header("Comparative Analysis")
 
+    results = collect_completed_results()
+    if results.empty:
+        st.info("No completed jobs to compare yet")
+    else:
+        st.dataframe(results)
+        if "n" in results.columns:
+            st.subheader("Total Operations by Algorithm")
+
+            fig_compare = px.bar(results,
+                                 x="algorithm",
+                                 y="total_operations",
+                                 color="algorithm",
+                                 barmode="group",
+                                 title="Algorithm Operations Comparison")
+            st.plotly_chart(fig_compare, use_container_width=True)
+        
+        if "n" in results.columns:
+
+            st.subheader("Growth Trend vs n")
+            log_scale = st.checkbox("Use Log Scale for Y-Axis", value=False)
+
+            fig_trend = px.line(
+                results.sort_values("n"),
+                x="n",
+                y="total_operations",
+                color="algorithm",
+                markers=True,
+                title="Observed Growth Trend"
+            )
+            fig_trend.update_yaxes(type="log" if log_scale else "linear")
+
+            st.plotly_chart(fig_trend, use_container_width=True)
+
+        st.subheader("Aggregated Summary")
+
+        summary_df = (
+            results
+            .groupby("algorithm")["total_operations"]
+            .mean()
+            .reset_index()
+            .rename(columns={"total_operations": "avg_operations"})
+        )
+
+        st.dataframe(summary_df)
 
     # System Controls
     st.subheader("System Controls")
