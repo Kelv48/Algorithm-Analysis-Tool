@@ -133,7 +133,7 @@ def extract_input_length(input_args):
 
 # Visualization helper functions 
 
-def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5, algorithm_name=""):
+def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, max_animation_length=20, algorithm_name=""):
     st.subheader(f"Algorithm Step-through Visualization for {algorithm_name}")
 
     if not history:
@@ -145,7 +145,7 @@ def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_
     if mode == "array":
         first_arrays = history[0].get(array_name) or []
         if first_arrays and len(first_arrays[0]) > max_animation_length:
-            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for large arrays.")
+            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for arrays larger than 20.")
             return
         array_placeholders = [st.empty() for _ in range(len(first_arrays))]
     else:

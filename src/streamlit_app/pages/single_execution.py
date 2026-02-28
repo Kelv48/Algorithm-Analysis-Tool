@@ -74,68 +74,68 @@ show_sidebar()
 st.title("Algorithm Analysis Tool: Single Execution")
 
 
-with st.sidebar:
-    st.title("Controls")
-    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
-    selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])
+# with st.sidebar:
+#     st.title("Controls")
+#     group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
+#     selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])
 
-    # Default mode (used for Graph)
-    mode = "random"
-    input_type = None
+#     # Default mode (used for Graph)
+#     mode = "random"
+#     input_type = None
 
-    if group in {"Sorting", "Searching", "Scheduling"}:
-        st.subheader("Input Configuration")
-        input_type = st.radio("Input Method", ["Slider (1–1000)", "Manual input"])
+#     if group in {"Sorting", "Searching", "Scheduling"}:
+#         st.subheader("Input Configuration")
+#         input_type = st.radio("Input Method", ["Slider (1–1000)", "Manual input"])
         
-        mode_input = st.radio(
-            "Input Generation Mode",
-            ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"]
-        )
+#         mode_input = st.radio(
+#             "Input Generation Mode",
+#             ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"]
+#         )
 
-        mode_map = {
-            "Random": "random",
-            "Guided / Edge-case": "guided",
-            "Evolutionary": "evolution",
-            "User-defined": "user"
-        }
+#         mode_map = {
+#             "Random": "random",
+#             "Guided / Edge-case": "guided",
+#             "Evolutionary": "evolution",
+#             "User-defined": "user"
+#         }
 
-        mode = mode_map[mode_input]
-    # -----------------------------
-    # Graph-specific controls
-    # -----------------------------
-    graph_params = {}
+#         mode = mode_map[mode_input]
+#     # -----------------------------
+#     # Graph-specific controls
+#     # -----------------------------
+#     graph_params = {}
 
-    if group == "Graph":
-        st.divider()
-        st.subheader("Graph Configuration")
+#     if group == "Graph":
+#         st.divider()
+#         st.subheader("Graph Configuration")
 
-        num_nodes = st.slider("Number of nodes", 2, 26, 6)
+#         num_nodes = st.slider("Number of nodes", 2, 26, 6)
 
-        max_edges = num_nodes * (num_nodes - 1)
-        num_edges = st.slider(
-            "Number of edges",
-            1,
-            max_edges,
-            min(8, max_edges)
-        )
+#         max_edges = num_nodes * (num_nodes - 1)
+#         num_edges = st.slider(
+#             "Number of edges",
+#             1,
+#             max_edges,
+#             min(8, max_edges)
+#         )
 
-        graph_type = st.selectbox(
-            "Graph type",
-            ["Random", "Connected", "Tree"]
-        )
+#         graph_type = st.selectbox(
+#             "Graph type",
+#             ["Random", "Connected", "Tree"]
+#         )
 
-        directed = st.checkbox("Directed graph", value=True)
+#         directed = st.checkbox("Directed graph", value=True)
 
-        labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:num_nodes])
-        start_node = st.selectbox("Start node", labels)
+#         labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:num_nodes])
+#         start_node = st.selectbox("Start node", labels)
 
-        graph_params = {
-            "num_nodes": num_nodes,
-            "num_edges": num_edges,
-            "graph_type": graph_type,
-            "directed": directed,
-            "start_node": start_node,
-        }
+#         graph_params = {
+#             "num_nodes": num_nodes,
+#             "num_edges": num_edges,
+#             "graph_type": graph_type,
+#             "directed": directed,
+#             "start_node": start_node,
+#         }
 
 
 
@@ -199,44 +199,137 @@ tab1, tab2, tab3 = st.tabs(["Single Run", "Compare Runs", "History / Visualizati
 with tab1:
     st.header("Run Algorithm & AST Analysis")
     disabled = st.session_state.get("is_running", False)
-
-    # Use sidebar selections
+    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
+    selected_function = st.selectbox("Algorithm", ALGO_GROUPS[group])
     cache_key = selected_function
-    user_has_run = st.session_state.future is not None or st.session_state.is_running
 
-    # Load cached counters if no run yet
-    if not user_has_run:
-        cached = load_cache(cache_key)
-        if cached is not None:
-            st.session_state.counters = cached.get("counters", counters_template.copy())
-            st.session_state.arr_length = cached.get("meta", {}).get("length")
+    # Configuration Section
+    with st.container(border=True):
+        st.subheader("Configure Inputs")
 
-    # --- Input sliders / number input on main page ---
-    current_params = None
-    if group in {"Sorting", "Searching", "Scheduling"}:
-        n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
-        arr_label = "Select array length" if group != "Scheduling" else "Select number of activities"
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if input_type.startswith("Slider"):
-                n = st.slider(n_label, 1, 1000, 100, key="slider_n", disabled=disabled)
-            else:
-                n = st.number_input(n_label, 1, value=100, key="free_input_n", disabled=disabled)
-
-        with col2:
-            if input_type.startswith("Slider"):
-                arr = st.slider(arr_label, 1, 1000, 100, key="slider_arr", disabled=disabled)
-            else:
-                arr = st.number_input(arr_label, 1, value=100, key="free_input_arr", disabled=disabled)
-
-        run_args = (selected_function, n, arr)
-        current_params = {"algo": selected_function, "n": n, "arr": arr}
-
-    else:
-        st.info("Configure graph parameters in the sidebar, (make sure to click 'Generate New Input Data' after changing parameters)")
-        run_args = (selected_function,)
         current_params = {"algo": selected_function}
+
+        # Default mode
+        mode = "random"
+        graph_params = {}
+        input_type = None
+
+        # ==========================================================
+        # ARRAY-BASED ALGORITHMS
+        # ==========================================================
+        if group in {"Sorting", "Searching", "Scheduling"}:
+
+            input_type = st.radio(
+                "Input Method",
+                ["Slider (1–1000)", "Manual input"],
+                horizontal=True
+            )
+
+            mode_input = st.radio(
+                "Input Generation Mode",
+                ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
+                horizontal=True
+            )
+
+            mode_map = {
+                "Random": "random",
+                "Guided / Edge-case": "guided",
+                "Evolutionary": "evolution",
+                "User-defined": "user"
+            }
+
+            mode = mode_map[mode_input]
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if input_type.startswith("Slider"):
+                    n = st.slider("Max Integer Value", 1, 1000, 100, disabled=disabled)
+                else:
+                    n = st.number_input("Max Integer Value", 1, value=100, disabled=disabled)
+
+            with col2:
+                if input_type.startswith("Slider"):
+                    arr = st.slider("Array Length", 1, 1000, 100, disabled=disabled)
+                else:
+                    arr = st.number_input("Array Length", 1, value=100, disabled=disabled)
+
+            run_args = (selected_function, n, arr)
+
+            current_params.update({
+                "n": n,
+                "arr": arr,
+                "mode": mode
+            })
+
+        # ==========================================================
+        # GRAPH-BASED ALGORITHMS
+        # ==========================================================
+        elif group == "Graph":
+
+            st.subheader("Graph Configuration")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                num_nodes = st.slider("Number of nodes", 2, 26, 6)
+
+            with col2:
+                max_edges = num_nodes * (num_nodes - 1)
+                num_edges = st.slider(
+                    "Number of edges",
+                    1,
+                    max_edges,
+                    min(8, max_edges)
+                )
+
+            graph_type = st.selectbox(
+                "Graph type",
+                ["Random", "Connected", "Tree"]
+            )
+
+            directed = st.checkbox("Directed graph", value=True)
+
+            labels = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:num_nodes])
+            start_node = st.selectbox("Start node", labels)
+
+            graph_params = {
+                "num_nodes": num_nodes,
+                "num_edges": num_edges,
+                "graph_type": graph_type,
+                "directed": directed,
+                "start_node": start_node,
+            }
+
+            run_args = (selected_function,)
+
+            current_params.update(graph_params)
+
+        # Divider + Preview
+        st.divider()
+        st.caption("Configured Parameters:")
+        st.json(current_params)
+
+
+        if group in {"Sorting", "Searching", "Scheduling"}:
+            n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
+            arr_label = "Select array length" if group != "Scheduling" else "Select number of activities"
+            
+            run_args = (selected_function, n, arr)
+            current_params = {"algo": selected_function, "n": n, "arr": arr}
+
+        else:
+            run_args = (selected_function,)
+            current_params = {"algo": selected_function}
+
+        user_has_run = st.session_state.future is not None or st.session_state.is_running
+
+        # Load cached counters if no run yet
+        if not user_has_run:
+            cached = load_cache(cache_key)
+            if cached is not None:
+                st.session_state.counters = cached.get("counters", counters_template.copy())
+                st.session_state.arr_length = cached.get("meta", {}).get("length")
 
     # --- User-defined function input ---
     user_func = None
@@ -266,120 +359,174 @@ with tab1:
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
 
-    # --- Generate Input Data ---
-    if st.button("Generate New Input Data", disabled=disabled):
-        selected_function = run_args[0]
-        base_array = None
-        if mode == "evolution" and st.session_state.generated_input:
-            base_array = st.session_state.generated_input[0]
+    # Execution Section
+    with st.container(border=True):
+        st.subheader("Execute")
 
-        match selected_function:
-            case name if name in sorting_algos:
-                st.session_state.generated_input = sorting_generation(
-                    *run_args, mode=mode, base_array=base_array, user_func=user_func
-                )
-            case name if name in search_algos:
-                st.session_state.generated_input = search_generation(
-                    *run_args, mode=mode, base_array=base_array, user_func=user_func
-                )
-            case name if name in activity_algos:
-                st.session_state.generated_input = activity_generation(
-                    *run_args, mode=mode, base_array=base_array, user_func=user_func
-                )
-            case name if name in graph_algos:
-                st.session_state.generated_input = graph_generation(
-                    selected_function,
-                    **graph_params
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            # --- Generate Input Data ---
+            if st.button("Generate New Input Data", disabled=disabled):
+                selected_function = run_args[0]
+                base_array = None
+                if mode == "evolution" and st.session_state.generated_input:
+                    base_array = st.session_state.generated_input[0]
+
+                match selected_function:
+                    case name if name in sorting_algos:
+                        st.session_state.generated_input = sorting_generation(
+                            *run_args, mode=mode, base_array=base_array, user_func=user_func
+                        )
+                    case name if name in search_algos:
+                        st.session_state.generated_input = search_generation(
+                            *run_args, mode=mode, base_array=base_array, user_func=user_func
+                        )
+                    case name if name in activity_algos:
+                        st.session_state.generated_input = activity_generation(
+                            *run_args, mode=mode, base_array=base_array, user_func=user_func
+                        )
+                    case name if name in graph_algos:
+                        st.session_state.generated_input = graph_generation(
+                            selected_function,
+                            **graph_params
+                        )
+
+                st.session_state.generated_params = current_params
+                st.session_state.input_generated = True
+
+        with col2:         
+            # --- Run AST Analysis ---
+            if st.button("Run AST Analysis", disabled=st.session_state.is_running):
+                drop_cache(cache_key)
+                st.session_state.is_running = True
+
+                if st.session_state.generated_input is None:
+                    if selected_function in graph_algos:
+                        st.session_state.generated_input = graph_generation(
+                            selected_function,
+                            **graph_params
+                        )
+
+                future = st.session_state.executor.submit(
+                    run_ast_analysis,
+                    *run_args,
+                    input_arr=st.session_state.generated_input if st.session_state.input_generated else None,
+                    input_generated=st.session_state.input_generated,
+                    input_mode = mode
                 )
 
-        st.session_state.generated_params = current_params
-        st.session_state.input_generated = True
+                st.session_state.future = future
+                st.rerun()
+
+        with col3:
+            # --- Cancel Run ---
+            if st.button("Cancel Run", disabled=not st.session_state.is_running):
+                st.session_state.status = "Cancelling..."
+                if st.session_state.future:
+                    st.session_state.future.cancel()
+                st.session_state.is_running = False
+                st.session_state.future = None
 
     if st.session_state.generated_input is not None:
         st.caption("Generated input")
 
-    # --- Run AST Analysis ---
-    if st.button("Run AST Analysis", disabled=st.session_state.is_running):
-        drop_cache(cache_key)
-        st.session_state.status = "Running analysis..."
-        st.session_state.is_running = True
-
-        if st.session_state.generated_input is None:
-            if selected_function in graph_algos:
-                st.session_state.generated_input = graph_generation(
-                    selected_function,
-                    **graph_params
-                )
-
-        future = st.session_state.executor.submit(
-            run_ast_analysis,
-            *run_args,
-            input_arr=st.session_state.generated_input if st.session_state.input_generated else None,
-            input_generated=st.session_state.input_generated,
-            input_mode = mode
-        )
-
-        st.session_state.future = future
-        st.rerun()
-
-    if st.button("Cancel Run", disabled=not st.session_state.is_running):
-        st.session_state.status = "Cancelling..."
-        if st.session_state.future:
-            st.session_state.future.cancel()
-        st.session_state.is_running = False
-        st.session_state.future = None
-
+    # Run Status Section
     if st.session_state.is_running:
-        with st.spinner("Analyzing AST and executing instrumented code…"):
-            st.caption("Parsing → instrumenting → executing")
-
-    if st.session_state.future:
+        st.warning("🟡 Analysis Running...")
         st_autorefresh(interval=2000, key="poll_ast")
-        if st.session_state.future.done():
-            payload = st.session_state.future.result()
-            st.session_state.arr_length = payload.get("meta", {}).get("length")
-            if payload:
-                st.session_state.counters = payload["counters"]
-                saved_input = payload["input"]
 
-                if group == "Graph" and isinstance(st.session_state.generated_input, dict):
-                    g = st.session_state.generated_input
-                    nodes = g.get("nodes", [])
-                    edges = g.get("edges", [])
-                    saved_input = {"nodes": nodes, "edges": edges}
-                save_recent_run(
-                    payload["meta"]["algorithm"],
-                    n if "n" in locals() else None,
-                    arr if "arr" in locals() else None,
-                    saved_input,
-                    payload["counters"],
-                    mode=mode, 
-                    history=payload.get("history", [])
-                )
-                save_cache(cache_key, payload, mode=mode)
-            else:
-                st.session_state.status = f"Function '{selected_function}' not found"
-            st.session_state.future = None
-            st.session_state.is_running = False
-            st.session_state.status = "Completed"
+    if st.session_state.future and st.session_state.future.done():
+        payload = st.session_state.future.result()
+
+        st.session_state.arr_length = payload.get("meta", {}).get("length")
+        st.session_state.counters = payload["counters"]
+        if payload:
+            saved_input = payload["input"]
+
+            if group == "Graph" and isinstance(st.session_state.generated_input, dict):
+                g = st.session_state.generated_input
+                nodes = g.get("nodes", [])
+                edges = g.get("edges", [])
+                saved_input = {"nodes": nodes, "edges": edges}
+            save_recent_run(
+                payload["meta"]["algorithm"],
+                n if "n" in locals() else None,
+                arr if "arr" in locals() else None,
+                saved_input,
+                payload["counters"],
+                mode=mode, 
+                history=payload.get("history", [])
+            )
+            save_cache(cache_key, payload, mode=mode)
+        else:
+            st.session_state.status = f"Function '{selected_function}' not found"
+        st.session_state.future = None
+        st.session_state.is_running = False
+        st.success("🟢 Analysis Complete")
 
     if st.session_state.status:
         st.info(st.session_state.status)
 
-     # --- Operation Selection & Charts ---
-    counters = st.session_state.counters
-    st.multiselect(
-        "Select operations to include:",
-        options=list(counters.keys()),
-        default=list(counters.keys()),
-        key="selected_operations",
-    )
+    # --- Step Through History ---
+    with st.container(border=True):
+        st.subheader("Step-Through Execution")
+    
+        last_run = load_most_recent_run()
 
+        if last_run:
+            history = last_run.get("history", [])
+            algorithm_name = last_run["algorithm"]
+
+            helper_map = {"merge_sort": ["merge"]}
+            source_code = extract_source_for_algorithm(
+                algo_path,
+                algorithm_name,
+                helper_map=helper_map
+            )
+
+            can_visualize = any(snapshot.get("arrays") for snapshot in history)
+
+            if not can_visualize:
+                for snapshot in history:
+                    if snapshot.get("nodes") is not None or snapshot.get("visited_edges") is not None:
+                        can_visualize = True
+                        break
+
+            with st.expander("View Algorithm Execution Animation"):
+                if can_visualize and source_code.strip():
+                    visualize_algorithm(history, source_code, algorithm_name=algorithm_name)
+                else:
+                    st.info("Animation unavailable: input too large or graph too big.")
+        else:
+            st.info("Run an algorithm to enable step-through visualization.")
+
+    # --- Operation Selection & Charts ---
+    counters = st.session_state.counters
     arr_length = st.session_state.get("arr_length")
     if not isinstance(arr_length, (int, float)):
         arr_length = None
 
-    display_charts(counters, arr_length)
+    if counters:
+        with st.container(border=True):
+            st.subheader("Execution Summary")
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Input Size", arr_length)
+            col2.metric("Total Operations", sum(counters.values()))
+            col3.metric("Comparisons", counters.get("comparisons", 0))
+
+    if counters:
+        with st.container(border=True):
+            st.subheader("Operation Breakdown")
+            st.multiselect(
+                "Select operations to include:",
+                options=list(counters.keys()),
+                default=list(counters.keys()),
+                key="selected_operations",
+            )
+
+            display_charts(counters, arr_length)  
 
 
 # -----------------------------
@@ -409,32 +556,6 @@ with tab2:
 # Tab 3: History / Step Visualization
 # -----------------------------
 with tab3:
-    st.header("Recent Runs & Algorithm Visualization")
-
-    # Load last run
-    last_run = load_most_recent_run()
-    if last_run:
-        history = last_run.get("history", [])
-        algorithm_name = last_run["algorithm"]
-
-        helper_map = {"merge_sort": ["merge"]}
-        source_code = extract_source_for_algorithm(algo_path, algorithm_name, helper_map=helper_map)
-
-        can_visualize = any(snapshot.get("arrays") for snapshot in history)
-
-        if not can_visualize:
-            for snapshot in history:
-                if snapshot.get("nodes") is not None or snapshot.get("visited_edges") is not None:
-                    can_visualize = True
-                    break
-
-        if can_visualize and source_code.strip():
-            visualize_algorithm(history, source_code, algorithm_name=algorithm_name)
-        else:
-            st.warning("Animation cannot run: input arrays were too large or graph too big.")
-    else:
-        st.info("No recent runs to visualize.")
-
     # -----------------------------
     # Recent Runs Summary (Top Counters)
     # -----------------------------
