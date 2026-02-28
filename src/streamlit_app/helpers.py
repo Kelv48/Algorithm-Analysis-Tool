@@ -72,7 +72,7 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
 
     exec_globals = {
         "SESSION": session,            
-        "arrays": [input_arr] if input_arr else [],
+        "arrays": copy.deepcopy(input_arr) if input_arr else [],
         "operator": operator,
         "not_in": not_in
     }
@@ -87,7 +87,17 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
 
     # Prepare input for the function
     if input_generated:
-        final_args = [copy.deepcopy(a) for a in input_arr] if isinstance(input_arr, list) else copy.deepcopy(input_arr)
+        if func_name in sorting_algos | search_algos | activity_algos:
+            if isinstance(input_arr, tuple):  
+                # Search algorithm: (arr, target)
+                final_args = [copy.deepcopy(input_arr[0]), input_arr[1]]
+            elif input_arr is not None:
+                final_args = [copy.deepcopy(input_arr)]  
+            else:
+                final_args = []
+        else:
+            final_args = [copy.deepcopy(a) for a in input_arr] if isinstance(input_arr, list) else copy.deepcopy(input_arr)
+              
     else:
         match func_name:
             case name if name in sorting_algos:

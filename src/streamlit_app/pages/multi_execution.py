@@ -10,7 +10,7 @@ import pandas as pd
 import plotly.express as px
 
 from navigation import show_sidebar
-from helpers import run_ast_analysis, graph_generation, apply_seed
+from helpers import run_ast_analysis, graph_generation, apply_seed, search_generation, sorting_generation, activity_generation
 
 
 # Paths
@@ -107,22 +107,43 @@ with tab1:
             if not selected_functions:
                 st.warning("Select at least one algorithm.")
             else:
+                new_jobs = []
+                random_seed = st.session_state.advanced_settings.get("random_seed", 0)
+                if random_seed:
+                    apply_seed(random_seed)
                 if group in {"Sorting", "Searching", "Scheduling"}:
+                    unique_inputs = []
+                    for n, arr_len, mode in product(n_values, arr_lengths, modes):
+                        if group == "Sorting":
+                            arr = sorting_generation(selected_functions[0], n, arr_len, mode=mode)[0]
+                        elif group == "Searching":
+                            arr, target = search_generation(selected_functions[0], n, arr_len, mode=mode)
+                        elif group == "Scheduling":
+                            arr = activity_generation(selected_functions[0], n, arr_len, mode=mode)[0]
 
-                    combinations = list(product(selected_functions, n_values, arr_lengths, modes))
-                    for algo, n, arr_len, mode in combinations:
-                        job_config = {
-                            "type": "array",
-                            "algorithm": algo,
+                        unique_inputs.append({
                             "n": n,
                             "arr_length": arr_len,
-                            "mode": mode
-                        }
-                        if job_config not in st.session_state.job_queue:
-                            st.session_state.job_queue.append(job_config)
+                            "mode": mode,
+                            "input_array": arr if group != "Searching" else (arr, target)
+                        })
+
+                    for algo in selected_functions:
+                        for inp in unique_inputs:
+                            job_config = {
+                                "type": "array",
+                                "algorithm": algo,
+                                "n": inp["n"],
+                                "arr_length": inp["arr_length"],
+                                "mode": inp["mode"],
+                                "input_array": inp["input_array"]
+                            }
+                            if job_config not in st.session_state.job_queue:
+                                new_jobs.append(job_config)
+
                 else:
-                    combinations = list(product(selected_functions, num_nodes, num_edges))
-                    for algo, nodes, edges in combinations:
+                    # --- Graph generation directly per job ---
+                    for algo, nodes, edges in product(selected_functions, num_nodes, num_edges):
                         graph_params = {
                             "num_nodes": nodes,
                             "num_edges": edges,
@@ -135,8 +156,11 @@ with tab1:
                             "graph_params": graph_params
                         }
                         if job_config not in st.session_state.job_queue:
-                            st.session_state.job_queue.append(job_config)
-                st.success("Jobs added to queue.")
+                            new_jobs.append(job_config)
+
+                # Add all new jobs to queue
+                st.session_state.job_queue.extend(new_jobs)
+                st.success(f"Added {len(new_jobs)} jobs to the queue.")
 
     # Queue Display/Management
     st.header("Job Queue")
@@ -177,20 +201,16 @@ with tab1:
 
         with col1:
             if st.button("Submit Queue"):
-                random_seed = st.session_state.advanced_settings.get("random_seed", 0)
-                if random_seed:
-                    apply_seed(random_seed)
                 for job in st.session_state.job_queue:
                     job_id = next(st.session_state.job_counter)
 
                     if job["type"] == "array":
-
+                        input_arr = job.get("input_array")
                         future = st.session_state.executor.submit(
                             run_ast_analysis,
                             job["algorithm"],
-                            job["n"],
-                            job["arr_length"],
-                            input_generated=False,
+                            input_arr=input_arr,
+                            input_generated=True,
                             input_mode=job["mode"],
                             job_id=job_id,
                             random_seed=st.session_state.advanced_settings.get("random_seed", 0)
