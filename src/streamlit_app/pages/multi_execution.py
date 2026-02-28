@@ -10,7 +10,7 @@ import pandas as pd
 import plotly.express as px
 
 from navigation import show_sidebar
-from helpers import run_ast_analysis, graph_generation
+from helpers import run_ast_analysis, graph_generation, apply_seed
 
 
 # Paths
@@ -53,118 +53,151 @@ tab1, tab2 = st.tabs(["Experimental Modes", "Complexity Analysis"])
 
 with tab1:
     # Job Configuration
-    st.header("Job Configuration")
+    with st.container(border=True):
+        st.header("Configure Jobs")
 
-    group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
-    selected_functions = st.multiselect("Algorithms", ALGO_GROUPS[group])
-
-
-    # Array-Based Config
-    if group in {"Sorting", "Searching", "Scheduling"}:
-
-        n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
-        arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
-        modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
-
-    # Graph Config
-    else:
-        st.subheader("Graph Configuration")
-
-        num_nodes = st.multiselect("Number of Nodes", [4, 6, 8, 10], default=[6])
-        num_edges = st.multiselect("Number of Edges", [4, 8, 12, 16], default=[8])
-        graph_type = st.selectbox("Graph Type", ["Random", "Connected", "Tree"])
-        directed = st.checkbox("Directed Graph", value=True)
-        modes = ["graph"]
+        group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
+        selected_functions = st.multiselect("Algorithms", ALGO_GROUPS[group])
 
 
-    # Could group the jobs based on input config, and then group the results
-    # So show the distribution of operations for each algorithm, but also show how it changes based on input size/type
-    # Run algos on the same inputs to compare them more directly
-    # So if we alter how the cartesian product operates so that it still generates all combinations,
-    # but it also groups by the input config - and uses each generated list on all algos before moving to the next input config
-    # Which means we wont need to fix the shared array input
+        # Array-Based Config
+        if group in {"Sorting", "Searching", "Scheduling"}:
+            st.subheader("Array Configuration")
 
-    # # Shared Inputs
-    # st.subheader("Shared Input Array (Optional)")
+            col1, col2 = st.columns(2)
 
-    # use_shared_array = st.checkbox("Use a shared array for all selected algorithms?", value=False)
+            with col1:
+                n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+            with col2:
+                modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
 
-    # if use_shared_array:
-    #     shared_array_mode = st.radio("Array Input Method", ["Generate Random Array", "Custom Input Array"])
-
-    #     if shared_array_mode == "Generate Random Array":
-    #         shared_length = st.slider("Array Length", 1, 1000, 100)
-    #         shared_max = st.slider("Max Integer Value", 1, 1000, 100)
-    #         if st.button("Generate Shared Array"):
-    #             st.session_state.shared_array = sorting_generation(func_name=selected_functions[0],n_range=shared_max, arr_length=shared_length, mode="random")
-    #             st.success(f"Generated shared array of length {shared_length}.")
-    #     elif shared_array_mode == "Custom Input Array":
-    #         user_input = st.text_area("Enter numbers separated by commas", value="1,2,3,4,5")
-    #         if st.button("Save Custom Array"):
-    #             try:
-    #                 st.session_state.shared_array = [int(x.strip()) for x in user_input.split(",")]
-    #                 st.success("Custom shared array saved.")
-    #             except ValueError:
-    #                 st.error("Invalid input. Enter integers separated by commas.")
-
-    # if st.session_state.shared_array:
-    #     st.info(f"Shared Array: {st.session_state.shared_array[:20]}{'...' if len(st.session_state.shared_array) > 20 else ''}")
-
-
-    # Build Job Queue
-    if st.button("Add Jobs to Queue"):
-        if not selected_functions:
-            st.warning("Select at least one algorithm.")
+        # Graph Config
         else:
-            if group in {"Sorting", "Searching", "Scheduling"}:
+            st.subheader("Graph Configuration")
 
-                combinations = list(product(
-                    selected_functions,
-                    n_values,
-                    arr_lengths,
-                    modes
-                ))
+            col1, col2 = st.columns(2)
 
-                for algo, n, arr_len, mode in combinations:
-                    job_config = {
-                        "type": "array",
-                        "algorithm": algo,
-                        "n": n,
-                        "arr_length": arr_len,
-                        "mode": mode
-                    }
+            with col1:
+                num_nodes = st.multiselect("Number of Nodes", [4, 6, 8, 10], default=[6])
+                num_edges = st.multiselect("Number of Edges", [4, 8, 12, 16], default=[8])
 
-                    if job_config not in st.session_state.job_queue:
-                        st.session_state.job_queue.append(job_config)
+            with col2:
+                graph_type = st.selectbox("Graph Type", ["Random", "Connected", "Tree"])
+                directed = st.checkbox("Directed Graph", value=True)
+            modes = ["graph"]
 
+        with st.expander("Advanced Settings"):
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                random_seed = st.number_input("Random Seed (0 = None)", min_value=0, value=0, help="Set fixed seed for reproducibility")
+                max_workers = st.slider("Max Parallel Workers", 1, 20, 10)
+
+            with col2:
+                show_raw_payload = st.checkbox("Show Raw AST Payload in Results", value=False)
+                auto_clear_finished = st.checkbox("Auto-clear finished jobs on reset", value=True)
+
+            # Apply worker change safely
+            if max_workers != st.session_state.executor._max_workers:
+                st.session_state.executor.shutdown(wait=False)
+                st.session_state.executor = ThreadPoolExecutor(max_workers=max_workers)
+
+            st.session_state.advanced_settings = {
+                "random_seed": random_seed,
+                "show_raw_payload": show_raw_payload,
+                "auto_clear_finished": auto_clear_finished
+            }
+
+
+        # Could group the jobs based on input config, and then group the results
+        # So show the distribution of operations for each algorithm, but also show how it changes based on input size/type
+        # Run algos on the same inputs to compare them more directly
+        # So if we alter how the cartesian product operates so that it still generates all combinations,
+        # but it also groups by the input config - and uses each generated list on all algos before moving to the next input config
+        # Which means we wont need to fix the shared array input
+
+        # # Shared Inputs
+        # st.subheader("Shared Input Array (Optional)")
+
+        # use_shared_array = st.checkbox("Use a shared array for all selected algorithms?", value=False)
+
+        # if use_shared_array:
+        #     shared_array_mode = st.radio("Array Input Method", ["Generate Random Array", "Custom Input Array"])
+
+        #     if shared_array_mode == "Generate Random Array":
+        #         shared_length = st.slider("Array Length", 1, 1000, 100)
+        #         shared_max = st.slider("Max Integer Value", 1, 1000, 100)
+        #         if st.button("Generate Shared Array"):
+        #             st.session_state.shared_array = sorting_generation(func_name=selected_functions[0],n_range=shared_max, arr_length=shared_length, mode="random")
+        #             st.success(f"Generated shared array of length {shared_length}.")
+        #     elif shared_array_mode == "Custom Input Array":
+        #         user_input = st.text_area("Enter numbers separated by commas", value="1,2,3,4,5")
+        #         if st.button("Save Custom Array"):
+        #             try:
+        #                 st.session_state.shared_array = [int(x.strip()) for x in user_input.split(",")]
+        #                 st.success("Custom shared array saved.")
+        #             except ValueError:
+        #                 st.error("Invalid input. Enter integers separated by commas.")
+
+        # if st.session_state.shared_array:
+        #     st.info(f"Shared Array: {st.session_state.shared_array[:20]}{'...' if len(st.session_state.shared_array) > 20 else ''}")
+
+
+        # Build Job Queue
+        if st.button("Add Jobs to Queue"):
+            if not selected_functions:
+                st.warning("Select at least one algorithm.")
             else:
-                combinations = list(product(
-                    selected_functions,
-                    num_nodes,
-                    num_edges
-                ))
+                if group in {"Sorting", "Searching", "Scheduling"}:
 
-                for algo, nodes, edges in combinations:
+                    combinations = list(product(
+                        selected_functions,
+                        n_values,
+                        arr_lengths,
+                        modes
+                    ))
 
-                    graph_params = {
-                        "num_nodes": nodes,
-                        "num_edges": edges,
-                        "graph_type": graph_type,
-                        "directed": directed
-                    }
+                    for algo, n, arr_len, mode in combinations:
+                        job_config = {
+                            "type": "array",
+                            "algorithm": algo,
+                            "n": n,
+                            "arr_length": arr_len,
+                            "mode": mode
+                        }
 
-                    job_config = {
-                        "type": "graph",
-                        "algorithm": algo,
-                        "graph_params": graph_params
-                    }
+                        if job_config not in st.session_state.job_queue:
+                            st.session_state.job_queue.append(job_config)
 
-                    if job_config not in st.session_state.job_queue:
-                        st.session_state.job_queue.append(job_config)
+                else:
+                    combinations = list(product(
+                        selected_functions,
+                        num_nodes,
+                        num_edges
+                    ))
 
-            st.success("Jobs added to queue.")
+                    for algo, nodes, edges in combinations:
 
-    st.divider()
+                        graph_params = {
+                            "num_nodes": nodes,
+                            "num_edges": edges,
+                            "graph_type": graph_type,
+                            "directed": directed
+                        }
+
+                        job_config = {
+                            "type": "graph",
+                            "algorithm": algo,
+                            "graph_params": graph_params
+                        }
+
+                        if job_config not in st.session_state.job_queue:
+                            st.session_state.job_queue.append(job_config)
+
+                st.success("Jobs added to queue.")
+
 
 
     # Queue Display/Management
@@ -173,7 +206,7 @@ with tab1:
     if not st.session_state.job_queue:
         st.info("Queue is empty.")
     else:
-        st.write(f"Queued Jobs: {len(st.session_state.job_queue)}")
+        st.metric("Queued Jobs", len(st.session_state.job_queue))
 
         for idx, job in enumerate(st.session_state.job_queue):
             col1, col2 = st.columns([6, 1])
@@ -205,6 +238,9 @@ with tab1:
 
         with col1:
             if st.button("Submit Queue"):
+                random_seed = st.session_state.advanced_settings.get("random_seed", 0)
+                if random_seed:
+                    apply_seed(random_seed)
                 for job in st.session_state.job_queue:
                     job_id = next(st.session_state.job_counter)
 
@@ -217,7 +253,8 @@ with tab1:
                             job["arr_length"],
                             input_generated=False,
                             input_mode=job["mode"],
-                            job_id=job_id
+                            job_id=job_id,
+                            random_seed=st.session_state.advanced_settings.get("random_seed", 0)
                         )
 
                     else: 
@@ -280,9 +317,9 @@ with tab1:
     finished_jobs = total_jobs - running_jobs
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Jobs", total_jobs)
+    col1.metric("Total", total_jobs)
     col2.metric("Running", running_jobs)
-    col3.metric("Finished", finished_jobs)
+    col3.metric("Completed", finished_jobs)
 
     st.divider()
 
@@ -329,6 +366,10 @@ with tab1:
                 st.plotly_chart(fig, use_container_width=True)
                 st.dataframe(df.set_index("Operation"))
 
+                if st.session_state.advanced_settings.get("show_raw_payload", False):
+                    st.subheader("Raw Payload")
+                    st.json(job_data["result"])
+
             if job_data["status"] == "failed":
                 st.error(job_data["result"]["error"])
 
@@ -338,11 +379,10 @@ with tab1:
     else:
         st.session_state.pop("multi_refresh", None)
 
-    st.divider()
-
 
 
     # System Controls
+    st.subheader("System Controls")
     col1, col2 = st.columns(2)
 
     with col1:
