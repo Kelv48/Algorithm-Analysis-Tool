@@ -63,38 +63,29 @@ with tab1:
         # Array-Based Config
         if group in {"Sorting", "Searching", "Scheduling"}:
             st.subheader("Array Configuration")
-
             col1, col2 = st.columns(2)
-
             with col1:
                 n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
                 arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
             with col2:
                 modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
-
         # Graph Config
         else:
             st.subheader("Graph Configuration")
-
             col1, col2 = st.columns(2)
-
             with col1:
                 num_nodes = st.multiselect("Number of Nodes", [4, 6, 8, 10], default=[6])
                 num_edges = st.multiselect("Number of Edges", [4, 8, 12, 16], default=[8])
-
             with col2:
                 graph_type = st.selectbox("Graph Type", ["Random", "Connected", "Tree"])
                 directed = st.checkbox("Directed Graph", value=True)
             modes = ["graph"]
 
         with st.expander("Advanced Settings"):
-
             col1, col2 = st.columns(2)
-
             with col1:
                 random_seed = st.number_input("Random Seed (0 = None)", min_value=0, value=0, help="Set fixed seed for reproducibility")
                 max_workers = st.slider("Max Parallel Workers", 1, 20, 10)
-
             with col2:
                 show_raw_payload = st.checkbox("Show Raw AST Payload in Results", value=False)
                 auto_clear_finished = st.checkbox("Auto-clear finished jobs on reset", value=True)
@@ -118,13 +109,7 @@ with tab1:
             else:
                 if group in {"Sorting", "Searching", "Scheduling"}:
 
-                    combinations = list(product(
-                        selected_functions,
-                        n_values,
-                        arr_lengths,
-                        modes
-                    ))
-
+                    combinations = list(product(selected_functions, n_values, arr_lengths, modes))
                     for algo, n, arr_len, mode in combinations:
                         job_config = {
                             "type": "array",
@@ -133,48 +118,36 @@ with tab1:
                             "arr_length": arr_len,
                             "mode": mode
                         }
-
                         if job_config not in st.session_state.job_queue:
                             st.session_state.job_queue.append(job_config)
-
                 else:
-                    combinations = list(product(
-                        selected_functions,
-                        num_nodes,
-                        num_edges
-                    ))
-
+                    combinations = list(product(selected_functions, num_nodes, num_edges))
                     for algo, nodes, edges in combinations:
-
                         graph_params = {
                             "num_nodes": nodes,
                             "num_edges": edges,
                             "graph_type": graph_type,
                             "directed": directed
                         }
-
                         job_config = {
                             "type": "graph",
                             "algorithm": algo,
                             "graph_params": graph_params
                         }
-
                         if job_config not in st.session_state.job_queue:
                             st.session_state.job_queue.append(job_config)
-
                 st.success("Jobs added to queue.")
-
-
 
     # Queue Display/Management
     st.header("Job Queue")
-
     if not st.session_state.job_queue:
         st.info("Queue is empty.")
     else:
         st.metric("Queued Jobs", len(st.session_state.job_queue))
+        max_display = st.slider("Max jobs to show in queue", 5, 500, 10)
 
-        for idx, job in enumerate(st.session_state.job_queue):
+        display_queue = st.session_state.job_queue[:max_display]
+        for idx, job in enumerate(display_queue):
             col1, col2 = st.columns([6, 1])
 
             with col1:
@@ -224,19 +197,18 @@ with tab1:
                         )
 
                     else: 
-
                         generated_graph = graph_generation(
                             job["algorithm"],
                             **job["graph_params"]
                         )
-
                         future = st.session_state.executor.submit(
                             run_ast_analysis,
                             job["algorithm"],
                             input_arr=generated_graph,
                             input_generated=True,
                             input_mode="graph",
-                            job_id=job_id
+                            job_id=job_id,
+                            random_seed=st.session_state.advanced_settings.get("random_seed", 0)
                         )
 
                     st.session_state.jobs[job_id] = {
@@ -321,7 +293,9 @@ with tab1:
 
     st.divider()
 
-    for job_id, job_data in sorted(st.session_state.jobs.items()):
+    max_display_jobs = st.slider("Max jobs to show on the dashboard", 5, 500, 10)
+    display_jobs = list(sorted(st.session_state.jobs.items()))[:max_display_jobs]
+    for job_id, job_data in display_jobs:
         with st.expander(f"Job {job_id} — {job_data['status']}"):
 
             st.write("Algorithm:", job_data["algorithm"])
@@ -386,43 +360,56 @@ with tab1:
     else:
         st.dataframe(results)
         if "n" in results.columns:
-            st.subheader("Total Operations by Algorithm")
+            st.subheader("Algorithm Operations Overview")
 
-            fig_compare = px.bar(results,
-                                 x="algorithm",
-                                 y="total_operations",
-                                 color="algorithm",
-                                 barmode="group",
-                                 title="Algorithm Operations Comparison")
-            st.plotly_chart(fig_compare, use_container_width=True)
-        
-        if "n" in results.columns:
+            col1, col2 = st.columns(2)
 
-            st.subheader("Growth Trend vs n")
+            # --- Operations vs Input Size (n) ---
+            with col1:
+                fig_n = px.scatter(results.sort_values("n"), x="n", y="total_operations", color="algorithm", symbol="algorithm", size_max=15, hover_data=["arr_length", "mode"], title="Operations vs Input Size (n)")
+                # Trend lines per algorithm
+                for algo in results["algorithm"].unique():
+                    df_algo = results[results["algorithm"] == algo].sort_values("n")
+                    fig_n.add_scatter(x=df_algo["n"], y=df_algo["total_operations"], mode="lines", name=f"{algo} trend", line=dict(dash="dash"))
+                st.plotly_chart(fig_n)
+
+            # --- Operations vs Array Length ---
+            if "arr_length" in results.columns:
+                with col2:
+                    fig_arr = px.scatter(results.sort_values("arr_length"), x="arr_length", y="total_operations", color="algorithm", symbol="algorithm", size_max=15, hover_data=["n", "mode"], title="Operations vs Array Length")
+                    # Trend lines per algorithm
+                    for algo in results["algorithm"].unique():
+                        df_algo = results[results["algorithm"] == algo].sort_values("arr_length")
+                        fig_arr.add_scatter( x=df_algo["arr_length"], y=df_algo["total_operations"], mode="lines", name=f"{algo} trend", line=dict(dash="dash"))
+                    st.plotly_chart(fig_arr)
+
             log_scale = st.checkbox("Use Log Scale for Y-Axis", value=False)
+            st.subheader("Growth Trends")
 
-            fig_trend = px.line(
-                results.sort_values("n"),
-                x="n",
-                y="total_operations",
-                color="algorithm",
-                markers=True,
-                title="Observed Growth Trend"
-            )
-            fig_trend.update_yaxes(type="log" if log_scale else "linear")
+            col1, col2 = st.columns(2)
 
-            st.plotly_chart(fig_trend, use_container_width=True)
+            # --- Trend vs Input Size (n) ---
+            with col1:
+                log_scale_n = st.checkbox("Log Scale for n Trend", value=False, key="log_n")
+                fig_trend_n = px.line(results.sort_values("n"), x="n", y="total_operations", color="algorithm", markers=True, hover_data=["arr_length", "mode"], title="Growth Trend vs Input Size (n)")
+                fig_trend_n.update_yaxes(type="log" if log_scale_n else "linear")
+                st.plotly_chart(fig_trend_n, use_container_width=True)
+
+            # --- Trend vs Array Length ---
+            with col2:
+                if "arr_length" in results.columns:
+                    log_scale_arr = st.checkbox("Log Scale for Array Length Trend", value=False, key="log_arr")
+                    fig_trend_arr = px.line(results.sort_values("arr_length"), x="arr_length", y="total_operations", color="algorithm", markers=True, hover_data=["n", "mode"], title="Growth Trend vs Array Length")
+                    fig_trend_arr.update_yaxes(type="log" if log_scale_arr else "linear")
+                    st.plotly_chart(fig_trend_arr, use_container_width=True)
+
+            st.subheader("Operations Heatmap")
+            df_heat = results.pivot_table(index="algorithm", columns="n", values="total_operations")
+            fig_heat = px.imshow(df_heat, text_auto=True, color_continuous_scale='Viridis', title="Operation Heatmap")
+            st.plotly_chart(fig_heat, use_container_width=True)
 
         st.subheader("Aggregated Summary")
-
-        summary_df = (
-            results
-            .groupby("algorithm")["total_operations"]
-            .mean()
-            .reset_index()
-            .rename(columns={"total_operations": "avg_operations"})
-        )
-
+        summary_df = results.groupby("algorithm")["total_operations"].mean().reset_index().rename(columns={"total_operations": "avg_operations"})
         st.dataframe(summary_df)
 
     # System Controls
