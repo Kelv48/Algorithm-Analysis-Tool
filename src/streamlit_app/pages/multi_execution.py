@@ -1,6 +1,7 @@
 import pathlib
 import sys
 import itertools
+import random
 from itertools import product
 from concurrent.futures import ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
@@ -30,6 +31,7 @@ ALGO_GROUPS = {
     "Searching": ["linear_search", "binary_search"],
     "Graph": ["dfs", "bfs"],
     "Scheduling": ["activity_selection"],
+    "Matrix": ["matrix_multiply", "matrix_add"]
 }
 
 
@@ -69,6 +71,18 @@ with tab1:
                 arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
             with col2:
                 modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
+        elif group == "Matrix":
+            st.subheader("Matrix Configuration")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                rows_A_values = st.multiselect("Rows of Matrix A", [2, 3, 4, 5], default=[2])
+            with col2:
+                cols_A_values = st.multiselect("Columns of Matrix A", [2, 3, 4, 5], default=[3])
+            with col3:
+                cols_B_values = st.multiselect("Columns of Matrix B", [2, 3, 4, 5], default=[2])
+            with col4:
+                n_values = st.multiselect("Max Integer Value", [10, 50, 100, 200], default=[100])
+            modes = st.multiselect("Generation Modes", ["random"], default=["random"])
         # Graph Config
         else:
             st.subheader("Graph Configuration")
@@ -140,7 +154,35 @@ with tab1:
                             }
                             if job_config not in st.session_state.job_queue:
                                 new_jobs.append(job_config)
+                elif group == "Matrix":
+                    unique_inputs = []
+                    for rows_A, cols_A, cols_B, n, mode in product(rows_A_values, cols_A_values, cols_B_values, n_values, modes):
+                        A = [[random.randint(0, n) for _ in range(cols_A)] for _ in range(rows_A)]
+                        B = [[random.randint(0, n) for _ in range(cols_B)] for _ in range(cols_A)]  # cols_A = rows_B
 
+                        unique_inputs.append({
+                            "rows_A": rows_A,
+                            "cols_A": cols_A,
+                            "cols_B": cols_B,
+                            "n": n,
+                            "mode": mode,
+                            "matrices": (A, B)
+                        })
+
+                    for algo in selected_functions:
+                        for inp in unique_inputs:
+                            job_config = {
+                                "type": "matrix",
+                                "algorithm": algo,
+                                "rows_A": inp["rows_A"],
+                                "cols_A": inp["cols_A"],
+                                "cols_B": inp["cols_B"],
+                                "n": inp["n"],
+                                "mode": inp["mode"],
+                                "matrices": inp["matrices"]
+                            }
+                            if job_config not in st.session_state.job_queue:
+                                new_jobs.append(job_config)
                 else:
                     # --- Graph generation directly per job ---
                     for algo, nodes, edges in product(selected_functions, num_nodes, num_edges):
@@ -182,7 +224,7 @@ with tab1:
                         f"len={job['arr_length']} | "
                         f"mode={job['mode']}"
                     )
-                else:
+                elif job["type"] == "graph":
                     gp = job["graph_params"]
                     st.write(
                         f"{job['algorithm']} | "
@@ -191,6 +233,9 @@ with tab1:
                         f"{gp['graph_type']} | "
                         f"{'Directed' if gp['directed'] else 'Undirected'}"
                     )
+                elif job["type"] == "matrix":
+                    st.write(
+                        f"{job['algorithm']} | {job['rows_A']}x{job['cols_A']} * {job['cols_A']}x{job['cols_B']} | mode={job['mode']}")
 
             with col2:
                 if st.button("Drop", key=f"remove_{idx}"):
@@ -212,6 +257,17 @@ with tab1:
                             input_arr=input_arr,
                             input_generated=True,
                             input_mode=job["mode"],
+                            job_id=job_id,
+                            random_seed=st.session_state.advanced_settings.get("random_seed", 0)
+                        )
+                    if job["type"] == "matrix":
+                        A, B = job["matrices"]
+                        future = st.session_state.executor.submit(
+                            run_ast_analysis,
+                            job["algorithm"],
+                            input_arr=(A, B),   # pass matrices as input
+                            input_generated=True,
+                            input_mode="matrix",
                             job_id=job_id,
                             random_seed=st.session_state.advanced_settings.get("random_seed", 0)
                         )
@@ -271,7 +327,6 @@ with tab1:
         for job_id, job_data in st.session_state.jobs.items():
             if job_data["status"] == "completed":
                 counters = job_data["result"]["counters"]
-
                 total_ops = sum(counters.values())
 
                 row = {
@@ -285,7 +340,12 @@ with tab1:
                     row["n"] = job_data["n"]
                     row["arr_length"] = job_data["arr_length"]
                     row["mode"] = job_data["mode"]
-                else:
+                elif job_data["type"] == "matrix":
+                    row["rows_A"] = job_data["rows_A"]
+                    row["cols_A"] = job_data["cols_A"]
+                    row["cols_B"] = job_data["cols_B"]
+                    row["mode"] = job_data["mode"]
+                elif job_data["type"] == "graph":
                     gp = job_data["graph_params"]
                     row["nodes"] = gp["num_nodes"]
                     row["edges"] = gp["num_edges"]
@@ -324,7 +384,13 @@ with tab1:
                 st.write("n:", job_data["n"])
                 st.write("Array Length:", job_data["arr_length"])
                 st.write("Mode:", job_data["mode"])
-            else:
+            elif job_data["type"] == "matrix":
+                st.write("Rows A:", job_data["rows_A"])
+                st.write("Cols A:", job_data["cols_A"])
+                st.write("Cols B:", job_data["cols_B"])
+                st.write("Max Value:", job_data["n"])
+                st.write("Mode:", job_data["mode"])
+            elif job_data["type"] == "graph":
                 gp = job_data["graph_params"]
                 st.write("Nodes:", gp["num_nodes"])
                 st.write("Edges:", gp["num_edges"])

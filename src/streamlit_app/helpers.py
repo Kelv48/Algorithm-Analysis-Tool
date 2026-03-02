@@ -84,7 +84,7 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     search_algos = {"linear_search", "binary_search"}
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
-    matrix_algos = {"matrix_multiply"}
+    matrix_algos = {"matrix_multiply", "matrix_add"}
 
     # Prepare input for the function
     if input_generated:

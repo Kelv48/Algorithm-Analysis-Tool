@@ -31,7 +31,7 @@ ALGO_GROUPS = {
     "Searching": ["linear_search", "binary_search"],
     "Graph": ["dfs", "bfs"],
     "Scheduling": ["activity_selection"],
-    "Matrix" : ["matrix_multiply"]
+    "Matrix" : ["matrix_multiply", "matrix_add"]
 }
 
 counters_template = {
@@ -411,7 +411,7 @@ with tab1:
     search_algos = {"linear_search", "binary_search"}
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
-    matrix_algos = {"matrix_multiply"}
+    matrix_algos = {"matrix_multiply", "matrix_add"}
 
     # Execution Section
     with st.container(border=True):
