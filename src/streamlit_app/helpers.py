@@ -84,6 +84,7 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     search_algos = {"linear_search", "binary_search"}
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
+    matrix_algos = {"matrix_multiply"}
 
     # Prepare input for the function
     if input_generated:
@@ -108,12 +109,19 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
                 final_args = graph_generation(func_name, *args)
             case name if name in activity_algos:
                 final_args = activity_generation(func_name, *args, mode=input_mode)
+            case name if name in matrix_algos:
+                final_args = matrix_generation(func_name, *args, mode=input_mode)
             case _:
                 raise ValueError(f"Unknown function {func_name} for input generation")
         final_args = [copy.deepcopy(arg) for arg in final_args]
 
-    # Assign arrays for instrumentation and run
-    exec_globals["arrays"] = [final_args[0]] if isinstance(final_args, list) else []
+    if func_name in matrix_algos:
+        exec_globals["arrays"] = [copy.deepcopy(final_args[0]),
+                                copy.deepcopy(final_args[1])]
+    elif isinstance(final_args, list):
+        exec_globals["arrays"] = [copy.deepcopy(final_args[0])]
+    else:
+        exec_globals["arrays"] = []
     exec_globals[func_name](*final_args, **kwargs)
 
     return {
@@ -554,5 +562,64 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
     else:
         raise ValueError(f"Unknown mode {mode}")
     return [activities]
+
+
+
+
+def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random", base_array=None, user_func=None):
+
+    def generate_A():
+        return [[randint(1, n_range) for _ in range(cols_A)]
+                for _ in range(rows_A)]
+
+    def generate_B():
+        return [[randint(1, n_range) for _ in range(cols_B)]
+                for _ in range(cols_A)]
+
+    # ------------------ MODES ------------------
+
+    if mode == "random":
+        A = generate_A()
+        B = generate_B()
+
+    elif mode == "guided":
+        case = choice(["all_same", "identity_like", "zeros"])
+
+        if case == "all_same":
+            val = randint(1, n_range)
+            A = [[val for _ in range(cols_A)] for _ in range(rows_A)]
+            B = [[val for _ in range(cols_B)] for _ in range(cols_A)]
+
+        elif case == "identity_like" and rows_A == cols_A:
+            A = [[1 if i == j else 0 for j in range(cols_A)]
+                 for i in range(rows_A)]
+            B = generate_B()
+
+        else: 
+            A = [[0 for _ in range(cols_A)] for _ in range(rows_A)]
+            B = generate_B()
+
+    elif mode == "evolution":
+        if base_array is None:
+            base_array = generate_A()
+
+        A = [row[:] for row in base_array]
+        B = generate_B()
+
+        mutations = max(1, (rows_A * cols_A) // 5)
+        for _ in range(mutations):
+            i = randint(0, rows_A - 1)
+            j = randint(0, cols_A - 1)
+            A[i][j] = randint(1, n_range)
+
+    elif mode == "user":
+        if user_func is None:
+            raise ValueError("User mode requires user_func")
+        A, B = user_func(n_range, rows_A, cols_A, cols_B)
+
+    else:
+        raise ValueError(f"Unknown mode {mode}")
+
+    return [A, B]
 
 # Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well

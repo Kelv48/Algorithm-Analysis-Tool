@@ -112,6 +112,22 @@ def activity_selection(activities):
             selected.append(activities[i])
     return selected
 
+def matrix_multiply(A, B):
+    m = len(A)
+    n = len(A[0])
+    p = len(B[0])
+
+    if n != len(B):
+        raise ValueError("Number of columns in A must equal number of rows in B")
+    C = [[0 for _ in range(p)] for _ in range(m)]
+
+    for i in range(m):
+        for j in range(p):
+            for k in range(n):
+                C[i][j] += A[i][k] * B[k][j]
+
+    return C
+
 # Add in matrix algorithms, tree algorithms, heap sort, Floyd-Warshall, etc.
 # Add in some graph algorithms like Dijkstra's, Prim's, Kruskal's, etc. and also some dynamic programming algorithms like Knapsack, LCS, etc.
 # Also add in some more scheduling algorithms like job scheduling, etc.

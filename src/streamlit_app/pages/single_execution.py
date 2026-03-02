@@ -12,7 +12,7 @@ from helpers import (
     sorting_generation, search_generation, graph_generation,
       activity_generation, save_recent_run, load_recent_runs, 
       extract_source_for_algorithm, load_most_recent_run,
-      visualize_algorithm, apply_seed
+      visualize_algorithm, apply_seed, matrix_generation
 )
 
 
@@ -31,6 +31,7 @@ ALGO_GROUPS = {
     "Searching": ["linear_search", "binary_search"],
     "Graph": ["dfs", "bfs"],
     "Scheduling": ["activity_selection"],
+    "Matrix" : ["matrix_multiply"]
 }
 
 counters_template = {
@@ -241,6 +242,49 @@ with tab1:
             run_args = (selected_function,)
 
             current_params.update(graph_params)
+        
+
+        # ==========================================================
+        # Matrix-BASED ALGORITHMS
+        # ==========================================================
+        elif group == "Matrix":
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                rows_A = st.number_input("Rows (A)", 1, value=2, step=1, format="%d")
+
+            with col2:
+                cols_A = st.number_input("Columns (A)", 1, value=3, step=1, format="%d")
+
+            with col3:
+                cols_B = st.number_input("Columns (B)", 1, value=2, step=1, format="%d")
+
+            n = st.slider("Max Integer Value", 1, 1000, 100, step=1)
+
+  
+            mode_input = st.radio(
+                "Input Generation Mode", 
+                ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
+                horizontal=True,
+                help="Choose a mode to be used to generate the matrix input"
+            )
+
+            mode_map = {
+                "Random": "random",
+                "Guided / Edge-case": "guided",
+                "Evolutionary": "evolution",
+                "User-defined": "user"
+            }
+
+            mode = mode_map[mode_input]
+
+            current_params.update({
+                "rows_A": rows_A,
+                "cols_A": cols_A,
+                "cols_B": cols_B,
+                "n": n,
+                "mode": mode
+            })
 
         # Divider + Preview
         st.divider()
@@ -324,6 +368,9 @@ with tab1:
             run_args = (selected_function, n, arr)
             current_params = {"algo": selected_function, "n": n, "arr": arr}
 
+        elif group in {"Matrix"}:
+            run_args = (selected_function, n, rows_A, cols_A, cols_B)
+
         else:
             run_args = (selected_function,)
             current_params = {"algo": selected_function}
@@ -364,6 +411,7 @@ with tab1:
     search_algos = {"linear_search", "binary_search"}
     graph_algos = {"dfs", "bfs"}
     activity_algos = {"activity_selection"}
+    matrix_algos = {"matrix_multiply"}
 
     # Execution Section
     with st.container(border=True):
@@ -400,6 +448,13 @@ with tab1:
                             selected_function,
                             **graph_params
                         )
+                    case name if name in matrix_algos:
+                        if None in (n, rows_A, cols_A, cols_B):
+                            st.error("Matrix parameters cannot be None")
+                        else:
+                            st.session_state.generated_input = matrix_generation(
+                                *run_args, mode=mode, base_array=base_array, user_func=user_func
+                            )
 
                 st.session_state.generated_params = current_params
                 st.session_state.input_generated = True
