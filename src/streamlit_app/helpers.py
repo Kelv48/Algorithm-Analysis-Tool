@@ -7,6 +7,7 @@ import pandas as pd
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
 from algorithm_analysis_tool.ast_visitor import ASTVisitor
 from algorithm_analysis_tool.execution_session import ExecutionSession, not_in
+from algorithm_analysis_tool.config import SORTING_ALGOS, SEARCH_ALGOS, GRAPH_ALGOS, ACTIVITY_ALGOS, MATRIX_ALGOS
 
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
@@ -80,15 +81,11 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
-    search_algos = {"linear_search", "binary_search"}
-    graph_algos = {"dfs", "bfs"}
-    activity_algos = {"activity_selection"}
-    matrix_algos = {"matrix_multiply", "matrix_add"}
+
 
     # Prepare input for the function
     if input_generated:
-        if func_name in sorting_algos | search_algos | activity_algos:
+        if func_name in SORTING_ALGOS | SEARCH_ALGOS | ACTIVITY_ALGOS:
             if isinstance(input_arr, tuple):  
                 # Search algorithm: (arr, target)
                 final_args = [copy.deepcopy(input_arr[0]), input_arr[1]]
@@ -101,21 +98,21 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
               
     else:
         match func_name:
-            case name if name in sorting_algos:
+            case name if name in SORTING_ALGOS:
                 final_args = sorting_generation(func_name, *args, mode=input_mode)
-            case name if name in search_algos:
+            case name if name in SEARCH_ALGOS:
                 final_args = search_generation(func_name, *args, mode=input_mode)
-            case name if name in graph_algos:
+            case name if name in GRAPH_ALGOS:
                 final_args = graph_generation(func_name, *args)
-            case name if name in activity_algos:
+            case name if name in ACTIVITY_ALGOS:
                 final_args = activity_generation(func_name, *args, mode=input_mode)
-            case name if name in matrix_algos:
+            case name if name in MATRIX_ALGOS:
                 final_args = matrix_generation(func_name, *args, mode=input_mode)
             case _:
                 raise ValueError(f"Unknown function {func_name} for input generation")
         final_args = [copy.deepcopy(arg) for arg in final_args]
 
-    if func_name in matrix_algos:
+    if func_name in MATRIX_ALGOS:
         exec_globals["arrays"] = [copy.deepcopy(final_args[0]),
                                 copy.deepcopy(final_args[1])]
     elif isinstance(final_args, list):

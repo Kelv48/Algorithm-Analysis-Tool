@@ -26,13 +26,7 @@ st.set_page_config(
 
 
 # Algorithm Groups
-ALGO_GROUPS = {
-    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort"],
-    "Searching": ["linear_search", "binary_search"],
-    "Graph": ["dfs", "bfs"],
-    "Scheduling": ["activity_selection"],
-    "Matrix": ["matrix_multiply", "matrix_add"]
-}
+from algorithm_analysis_tool.config import ALGO_GROUPS, ARRAY_GROUPS, GRAPH_GROUPS, MATRIX_GROUPS
 
 
 # Session
@@ -63,7 +57,7 @@ with tab1:
 
 
         # Array-Based Config
-        if group in {"Sorting", "Searching", "Scheduling"}:
+        if group in ARRAY_GROUPS:
             st.subheader("Array Configuration")
             col1, col2 = st.columns(2)
             with col1:
@@ -71,7 +65,7 @@ with tab1:
                 arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
             with col2:
                 modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
-        elif group == "Matrix":
+        elif group in MATRIX_GROUPS:
             st.subheader("Matrix Configuration")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -125,7 +119,7 @@ with tab1:
                 random_seed = st.session_state.advanced_settings.get("random_seed", 0)
                 if random_seed:
                     apply_seed(random_seed)
-                if group in {"Sorting", "Searching", "Scheduling"}:
+                if group in ARRAY_GROUPS:
                     unique_inputs = []
                     for n, arr_len, mode in product(n_values, arr_lengths, modes):
                         if group == "Sorting":
@@ -154,7 +148,7 @@ with tab1:
                             }
                             if job_config not in st.session_state.job_queue:
                                 new_jobs.append(job_config)
-                elif group == "Matrix":
+                elif group in MATRIX_GROUPS:
                     unique_inputs = []
                     for rows_A, cols_A, cols_B, n, mode in product(rows_A_values, cols_A_values, cols_B_values, n_values, modes):
                         A = [[random.randint(0, n) for _ in range(cols_A)] for _ in range(rows_A)]
@@ -260,7 +254,7 @@ with tab1:
                             job_id=job_id,
                             random_seed=st.session_state.advanced_settings.get("random_seed", 0)
                         )
-                    if job["type"] == "matrix":
+                    elif job["type"] == "matrix":
                         A, B = job["matrices"]
                         future = st.session_state.executor.submit(
                             run_ast_analysis,

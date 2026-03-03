@@ -26,13 +26,7 @@ sys.path.insert(0, str(ast_visitor_path))
 
 st.set_page_config(page_title="Algorithm Dashboard", page_icon="📊", layout="wide")
 
-ALGO_GROUPS = {
-    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort"],
-    "Searching": ["linear_search", "binary_search"],
-    "Graph": ["dfs", "bfs"],
-    "Scheduling": ["activity_selection"],
-    "Matrix" : ["matrix_multiply", "matrix_add"]
-}
+from algorithm_analysis_tool.config import ALGO_GROUPS, ARRAY_GROUPS, GRAPH_GROUPS, MATRIX_GROUPS, SORTING_ALGOS, SEARCH_ALGOS, GRAPH_ALGOS, ACTIVITY_ALGOS, MATRIX_ALGOS
 
 counters_template = {
     "assignments": 0,
@@ -154,7 +148,7 @@ with tab1:
         # ==========================================================
         # ARRAY-BASED ALGORITHMS
         # ==========================================================
-        if group in {"Sorting", "Searching", "Scheduling"}:
+        if group in ARRAY_GROUPS:
 
             input_type = st.radio(
                 "Input Method",
@@ -203,7 +197,7 @@ with tab1:
         # ==========================================================
         # GRAPH-BASED ALGORITHMS
         # ==========================================================
-        elif group == "Graph":
+        elif group in GRAPH_GROUPS:
 
             st.subheader("Graph Configuration")
 
@@ -247,7 +241,7 @@ with tab1:
         # ==========================================================
         # Matrix-BASED ALGORITHMS
         # ==========================================================
-        elif group == "Matrix":
+        elif group in MATRIX_GROUPS:
             col1, col2, col3 = st.columns(3)
 
             with col1:
@@ -259,7 +253,7 @@ with tab1:
             with col3:
                 cols_B = st.number_input("Columns (B)", 1, value=2, step=1, format="%d")
 
-            n = st.slider("Max Integer Value", 1, 1000, 100, step=1)
+            n = st.slider("Max Integer Value", 1, 1000, value=100, step=1)
 
   
             mode_input = st.radio(
@@ -326,7 +320,7 @@ with tab1:
                 )
 
             # Graph-specific advanced options
-            if group == "Graph":
+            if group in GRAPH_GROUPS:
                 st.divider()
                 st.subheader("Graph Advanced")
 
@@ -361,14 +355,14 @@ with tab1:
 
 
 
-        if group in {"Sorting", "Searching", "Scheduling"}:
-            n_label = "Select max integer value" if group != "Scheduling" else "Select max time value"
-            arr_label = "Select array length" if group != "Scheduling" else "Select number of activities"
+        if group in ARRAY_GROUPS:
+            n_label = "Select max integer value" if group != ACTIVITY_ALGOS else "Select max time value"
+            arr_label = "Select array length" if group != ACTIVITY_ALGOS else "Select number of activities"
             
             run_args = (selected_function, n, arr)
             current_params = {"algo": selected_function, "n": n, "arr": arr}
 
-        elif group in {"Matrix"}:
+        elif group in MATRIX_GROUPS:
             run_args = (selected_function, n, rows_A, cols_A, cols_B)
 
         else:
@@ -386,7 +380,7 @@ with tab1:
 
     # --- User-defined function input ---
     user_func = None
-    if group in {"Sorting", "Searching", "Scheduling"} and mode == "user":
+    if group in ARRAY_GROUPS and mode == "user":
         code_input = st.text_area(
             "Define your input function as `def gen(n_range, arr_length): ...`",
             key="user_func_code"
@@ -407,11 +401,6 @@ with tab1:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
 
-    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
-    search_algos = {"linear_search", "binary_search"}
-    graph_algos = {"dfs", "bfs"}
-    activity_algos = {"activity_selection"}
-    matrix_algos = {"matrix_multiply", "matrix_add"}
 
     # Execution Section
     with st.container(border=True):
@@ -431,24 +420,24 @@ with tab1:
                     base_array = st.session_state.generated_input[0]
 
                 match selected_function:
-                    case name if name in sorting_algos:
+                    case name if name in SORTING_ALGOS:
                         st.session_state.generated_input = sorting_generation(
                             *run_args, mode=mode, base_array=base_array, user_func=user_func
                         )
-                    case name if name in search_algos:
+                    case name if name in SEARCH_ALGOS:
                         st.session_state.generated_input = search_generation(
                             *run_args, mode=mode, base_array=base_array, user_func=user_func
                         )
-                    case name if name in activity_algos:
+                    case name if name in ACTIVITY_ALGOS:
                         st.session_state.generated_input = activity_generation(
                             *run_args, mode=mode, base_array=base_array, user_func=user_func
                         )
-                    case name if name in graph_algos:
+                    case name if name in GRAPH_ALGOS:
                         st.session_state.generated_input = graph_generation(
                             selected_function,
                             **graph_params
                         )
-                    case name if name in matrix_algos:
+                    case name if name in MATRIX_ALGOS:
                         if None in (n, rows_A, cols_A, cols_B):
                             st.error("Matrix parameters cannot be None")
                         else:
@@ -466,7 +455,7 @@ with tab1:
                 st.session_state.is_running = True
 
                 if st.session_state.generated_input is None:
-                    if selected_function in graph_algos:
+                    if selected_function in GRAPH_ALGOS:
                         st.session_state.generated_input = graph_generation(
                             selected_function,
                             **graph_params
@@ -510,7 +499,7 @@ with tab1:
         if payload:
             saved_input = payload["input"]
 
-            if group == "Graph" and isinstance(st.session_state.generated_input, dict):
+            if group in GRAPH_GROUPS and isinstance(st.session_state.generated_input, dict):
                 g = st.session_state.generated_input
                 nodes = g.get("nodes", [])
                 edges = g.get("edges", [])
