@@ -110,7 +110,7 @@ class ExecutionSession:
     # ---------------- execution ----------------
 
     def run(self, src: str):
-        from ast_visitor import ASTVisitor
+        from .ast_visitor import ASTVisitor
 
         tree = ast.parse(src)
         transformer = ASTVisitor(self)
@@ -136,3 +136,40 @@ class ExecutionSession:
             })
 
         return self.counters, self.history
+    
+    def run_function(self, func_name: str, args=None, src: str = None):
+        import operator
+        from .ast_visitor import ASTVisitor
+
+        if args is None:
+            args = []
+
+        tree = ast.parse(src)
+        tree = ASTVisitor(self).visit(tree)
+        ast.fix_missing_locations(tree)
+
+        env = {
+            "SESSION": self,
+            "operator": operator,
+            "not_in": not_in,
+            "arrays": []
+        }
+
+        exec(compile(tree, "<instrumented>", "exec"), env)
+
+        if func_name not in env:
+            raise ValueError(f"Function '{func_name}' not found in source after instrumentation")
+
+        func = env[func_name]
+
+        result = func(*args)
+
+        if self.final_state:
+            self.history.append({
+                "line_no": None,
+                "operation": "final_state",
+                "counters": self.counters.copy(),
+                "arrays": [self.final_state]
+            })
+
+        return result, self.counters, self.history
