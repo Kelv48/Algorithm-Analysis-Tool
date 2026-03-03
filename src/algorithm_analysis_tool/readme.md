@@ -1,4 +1,5 @@
-# Algorithm Analysis Tool | Ast Core Logic
+# Algorithm Analysis Tool | Ast Core Logic & CLI
+This documentation covers the core logic of the Algorithm Analysis Tool, including AST-based runtime instrumentation and the CLI for executing algorithms with optional custom or random inputs.
 
 
 # Runtime Counter Functions
@@ -380,6 +381,107 @@ def visit_BinOp(self, node):
                 keywords=[]
             )
     return node
+```
+
+---
+
+# Cli Functionality
+
+The CLI allows you to execute, test, and compare algorithm functions from a Python file, with flexible input options and runtime metrics.
+
+## 1. CLI Features
+
+The CLI supports the following:
+
+1. **Function Selection**
+   - List all functions in a Python file.
+   - Run all functions or a subset by specifying their numbers (comma-separated).
+
+2. **Input Options**
+   - **Default inputs** (predefined for standard algorithms like sorting/searching).
+   - **Custom JSON inputs** provided by the user.
+   - **Randomly generated inputs** for:
+     - Sorting
+     - Searching
+     - Graph algorithms (DFS/BFS)
+     - Scheduling/Activity Selection
+     - Matrix operations
+
+3. **Execution Options**
+   - Measure execution time (`y/N`)
+   - Show full step-by-step execution history (`y/N`)
+   - Compare multiple functions side by side (`y/N`)
+
+4. **Results**
+   - Function return value
+   - Runtime counters (comparisons, assignments, indexing, arithmetic, function calls)
+   - Execution time
+
+5. **Error Handling**
+   - Missing or invalid arguments show a descriptive error and continue other functions.
+   - Invalid JSON input falls back to default input.
+   - Invalid file paths terminate the CLI with a clear message.
+
+---
+
+## 2. Running the CLI
+
+```python
+algorithm-analysis
+```
+
+### Example Session
+```python
+Available functions:
+1. bubble_sort
+2. merge_sort
+3. insertion_sort
+4. quicksort
+5. heap_sort
+6. radix_sort
+7. linear_search
+8. binary_search
+9. dfs
+10. bfs
+11. matrix_multiply
+12. matrix_add
+
+Enter function numbers to run (comma-separated) or leave blank for all: 1,2
+Provide custom input as JSON (leave blank for default): [[5, 2, 9, 1, 5, 6]]
+Use random input? (y/N): N
+Random input size (default 10): 10
+Measure execution time? (y/N): Y
+Show full step history? (y/N): N
+Compare multiple functions? (y/N): Y
+```
+
+### Custom Input Cheat Sheet
+1. Sorting
+```json
+[5, 2, 9, 1, 5, 6]
+```
+
+2. Searching
+```json
+[[1, 3, 5, 7, 9], 5]
+```
+
+3. Graph Algos
+```json
+[{"A": ["B", "C"], "B": ["D"], "C": ["D"], "D": []}, "A"]
+```
+
+4. Activity Selection
+```json
+[[[1, 4], [3, 5], [0, 6], [5, 7], [8, 9]]]
+```
+
+5. Matrix Algos
+```json
+[
+  [[1, 2], [3, 4]],
+  [[5, 6], [7, 8]]
+]
 ```
 
 ---

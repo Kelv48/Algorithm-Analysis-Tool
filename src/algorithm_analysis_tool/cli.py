@@ -55,7 +55,15 @@ def prepare_input(func_name, user_input=None, random_flag=False, size=10):
     if user_input:
         try:
             parsed = json.loads(user_input)
-            return list(parsed) if isinstance(parsed, (list, tuple)) else [parsed]
+            if func_name in {"bubble_sort", "merge_sort", "insertion_sort", "quicksort",
+                             "heap_sort", "radix_sort"}:
+                return [parsed] 
+            elif func_name in {"linear_search", "binary_search"}:
+                return parsed 
+            elif func_name in {"dfs", "bfs", "matrix_multiply", "matrix_add", "activity_selection"}:
+                return [parsed] 
+            else:
+                return [parsed]
         except json.JSONDecodeError:
             print("Invalid JSON input, using default/random input instead.")
 
@@ -106,12 +114,18 @@ def main():
         func_names = list(function_map.keys())
 
     user_input = input("Custom JSON input (leave blank for default/random): ").strip() or None
-    use_random = input("Use random input? (y/N): ").strip().lower() == "y"
-    size = input("Random input size (default 10): ").strip()
-    size = int(size) if size.isdigit() else 10
+
+    if not user_input:
+        use_random = input("Use random input? (y/N): ").strip().lower() == "y"
+        size = input("Random input size (default 10): ").strip()
+        size = int(size) if size.isdigit() else 10
+    else:
+        use_random = False
+        size = 10
     measure_time = input("Measure time? (y/N): ").strip().lower() == "y"
     verbose = input("Show step history? (y/N): ").strip().lower() == "y"
     compare = input("Compare multiple functions? (y/N): ").strip().lower() == "y"
+    export_json = input("Export step history as JSON? (y/N): ").strip().lower() == "y"
 
     results = []
 
@@ -140,8 +154,16 @@ def main():
             "function": func_name,
             "result": result,
             "counters": counters,
-            "time": elapsed_time
+            "time": elapsed_time,
+            "history": history
         })
+
+        if export_json:
+            filename = f"{func_name}_history.json"
+            with open(filename, "w") as f:
+                json.dump(history, f, indent=2)
+            print(f"Step history exported to {filename}")
+
 
     if compare and len(results) > 1:
         print("\n=== Comparison Summary ===")
