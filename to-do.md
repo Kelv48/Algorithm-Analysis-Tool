@@ -9,3 +9,8 @@
 - Allow step through history of graph algos
     - Dont show the graph
     
+
+- User ingested code
+- Update cli
+- Implement the complexity analysis page, which will run a number of jobs for each chosen algo and then compare the complexity achieved over the runs with common complexities (nlogn, n, n^2, n^3, n!)
+- Rank the algos based on complexity
