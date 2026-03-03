@@ -36,6 +36,65 @@ def merge(left, right):
 
     return merged
 
+
+
+def heapify(arr, n, i):
+    largest = i
+    left = 2 * i + 1
+    right = 2 * i + 2
+
+    if left < n and arr[left] > arr[largest]:
+        largest = left
+
+    if right < n and arr[right] > arr[largest]:
+        largest = right
+
+    if largest != i:
+        arr[i], arr[largest] = arr[largest], arr[i]
+        heapify(arr, n, largest)
+
+def heap_sort(arr):
+    n = len(arr)
+
+    for i in range(n // 2 - 1, -1, -1):
+        heapify(arr, n, i)
+
+    for i in range(n - 1, 0, -1):
+        arr[0], arr[i] = arr[i], arr[0]
+        heapify(arr, i, 0)
+
+    return arr
+
+
+
+def counting_sort_for_radix(arr, exp):
+    n = len(arr)
+    output = [0] * n
+    count = [0] * 10 
+
+    for i in arr:
+        index = (i // exp) % 10
+        count[index] += 1
+
+    for i in range(1, 10):
+        count[i] += count[i - 1]
+
+    for i in range(n - 1, -1, -1):
+        index = (arr[i] // exp) % 10
+        output[count[index] - 1] = arr[i]
+        count[index] -= 1
+
+    for i in range(n):
+        arr[i] = output[i]
+
+def radix_sort(arr):
+    max_num = max(arr) if arr else 0
+    exp = 1
+    while max_num // exp > 0:
+        counting_sort_for_radix(arr, exp)
+        exp *= 10
+    return arr
+
 # Heap sort, Floyd-Worshal
 # Matrix and Tree algos also
 
@@ -133,7 +192,7 @@ def matrix_add(A, B):
     n = min(len(A[0]), len(B[0]))
     return [[A[i][j] + B[i][j] for j in range(n)] for i in range(m)]
 
-# Add in matrix algorithms, tree algorithms, heap sort, Floyd-Warshall, etc.
+# Add in matrix algorithms, tree algorithms, Floyd-Warshall, etc.
 # Add in some graph algorithms like Dijkstra's, Prim's, Kruskal's, etc. and also some dynamic programming algorithms like Knapsack, LCS, etc.
 # Also add in some more scheduling algorithms like job scheduling, etc.
 # And add in some more searching and sorting algorithms as well, maybe radix sort, counting sort, etc.

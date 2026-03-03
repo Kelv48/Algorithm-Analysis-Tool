@@ -1,5 +1,5 @@
 ALGO_GROUPS = {
-    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort"],
+    "Sorting": ["bubble_sort", "merge_sort", "insertion_sort", "quicksort", "radix_sort", "heap_sort"],
     "Searching": ["linear_search", "binary_search"],
     "Graph": ["dfs", "bfs"],
     "Scheduling": ["activity_selection"],
