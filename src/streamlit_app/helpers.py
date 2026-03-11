@@ -417,7 +417,7 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
     """Generate input array for sorting algorithms."""
     if mode == "random":
         arr = [randint(1, n_range) for _ in range(arr_length)]
-    elif mode == "guided":
+    elif mode == "edge-case":
         # Generate common edge-case arrays
         case = choice(["sorted", "reverse", "all_same", "few_unique"])
         if case == "sorted":

@@ -158,14 +158,14 @@ with tab1:
 
             mode_input = st.radio(
                 "Input Generation Mode",
-                ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
+                ["Random", "Edge-case / Edge-case", "Evolutionary", "User-defined"],
                 horizontal=True,
                 help="Choose an mode to be used to generate the array"
             )
 
             mode_map = {
                 "Random": "random",
-                "Guided / Edge-case": "guided",
+                "Edge-case": "edge-case",
                 "Evolutionary": "evolution",
                 "User-defined": "user"
             }
@@ -258,14 +258,14 @@ with tab1:
   
             mode_input = st.radio(
                 "Input Generation Mode", 
-                ["Random", "Guided / Edge-case", "Evolutionary", "User-defined"],
+                ["Random", "Edge-case", "Evolutionary", "User-defined"],
                 horizontal=True,
                 help="Choose a mode to be used to generate the matrix input"
             )
 
             mode_map = {
                 "Random": "random",
-                "Guided / Edge-case": "guided",
+                "Edge-case": "edge-case",
                 "Evolutionary": "evolution",
                 "User-defined": "user"
             }

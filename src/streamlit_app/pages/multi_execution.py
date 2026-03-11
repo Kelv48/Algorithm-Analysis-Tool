@@ -65,7 +65,7 @@ with tab1:
                 n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
                 arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
             with col2:
-                modes = st.multiselect("Generation Modes", ["random", "guided", "evolution"], default=["random"])
+                modes = st.multiselect("Generation Modes", ["random", "edge-case", "evolution"], default=["random"])
         elif group in MATRIX_GROUPS:
             st.subheader("Matrix Configuration")
             col1, col2, col3, col4 = st.columns(4)
@@ -653,6 +653,15 @@ with tab2:
             complexity_df = pd.DataFrame(complexity_rows)
             complexity_df["label"] = complexity_df["algorithm"] + " (" + complexity_df["mode"] + ")"
 
+            # --- Stagger y positions ---
+            algo_list = complexity_df['algorithm'].unique()
+            algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
+            complexity_df['y_pos'] = complexity_df['algorithm'].map(algo_to_y)
+
+            # --- Assign colors ---
+            palette = px.colors.qualitative.Set2
+            algo_colors = {algo: palette[i % len(palette)] for i, algo in enumerate(algo_list)}
+
             bands = [
                 ("O(1)", 0.0, 0.25, "#2ecc71"),
                 ("O(log n)", 0.25, 0.75, "#27ae60"),
@@ -671,12 +680,18 @@ with tab2:
             fig = px.scatter(
                 complexity_df,
                 x="slope",
-                y=["Algorithms"] * len(complexity_df),
+                y="y_pos",
+                color="algorithm",
                 text="label",
-                title="Empirical Algorithm Complexity Map"
+                title="Empirical Algorithm Complexity Map",
+                color_discrete_map=algo_colors,
+                hover_data=["algorithm", "mode", "slope"]
             )
-            fig.update_traces(marker=dict(size=14), textposition="top center", name="Algorithms")  # key for global map
 
+            fig.update_traces(marker=dict(size=14), textposition="top center")
+            fig.update_yaxes(showticklabels=True, tickvals=list(algo_to_y.values()), ticktext=list(algo_to_y.keys()))
+
+            # Add complexity bands as vertical rectangles
             for name, start, end, color in bands:
                 fig.add_vrect(
                     x0=start,
@@ -686,12 +701,14 @@ with tab2:
                     layer="below",
                     line_width=0,
                     annotation_text=name,
-                    annotation_position="top left",
-                    name=f"{name} band"  # key for band
+                    annotation_position="top left"
                 )
 
-            fig.update_yaxes(showticklabels=False)
-            fig.update_layout(xaxis_title="Empirical Complexity Exponent (k in n^k)",
-                              height=450,
-                              legend_title_text="Algorithms / Complexity Bands")
+            fig.update_layout(
+                xaxis_title="Empirical Complexity Exponent (k in n^k)",
+                yaxis_title="Algorithm",
+                height=500,
+                legend_title_text="Algorithm"
+            )
+
             st.plotly_chart(fig, use_container_width=True)
