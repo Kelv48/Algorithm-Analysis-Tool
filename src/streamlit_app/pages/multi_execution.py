@@ -653,15 +653,32 @@ with tab2:
             complexity_df = pd.DataFrame(complexity_rows)
             complexity_df["label"] = complexity_df["algorithm"] + " (" + complexity_df["mode"] + ")"
 
-            # --- Stagger y positions ---
+            # --- Stagger y positions for algorithms ---
             algo_list = complexity_df['algorithm'].unique()
             algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
-            complexity_df['y_pos'] = complexity_df['algorithm'].map(algo_to_y)
+
+            # --- Stagger modes within each algorithm ---
+            stagger_amount = 0.15  # max offset for modes
+            y_positions = []
+
+            # Use groupby to assign offsets correctly
+            def stagger_group(group):
+                n_modes = len(group)
+                if n_modes == 1:
+                    offsets = [0.0]
+                else:
+                    offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
+                # Assign y_pos for each row in the group
+                return algo_to_y[group.name] + offsets
+
+            # Apply the function per algorithm group
+            complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
 
             # --- Assign colors ---
             palette = px.colors.qualitative.Set2
             algo_colors = {algo: palette[i % len(palette)] for i, algo in enumerate(algo_list)}
 
+            # --- Complexity bands ---
             bands = [
                 ("O(1)", 0.0, 0.25, "#2ecc71"),
                 ("O(log n)", 0.25, 0.75, "#27ae60"),
@@ -674,9 +691,10 @@ with tab2:
             st.divider()
             st.markdown("## 🌐 Global Complexity Landscape")
             st.markdown(
-                "Compare all selected algorithms at once. Colored bands show theoretical complexity regions."
+                "Compare all selected algorithms at once. Colored bands show theoretical complexity regions. Modes are slightly staggered for clarity."
             )
 
+            # --- Scatter plot with staggered y ---
             fig = px.scatter(
                 complexity_df,
                 x="slope",
@@ -689,7 +707,11 @@ with tab2:
             )
 
             fig.update_traces(marker=dict(size=14), textposition="top center")
-            fig.update_yaxes(showticklabels=True, tickvals=list(algo_to_y.values()), ticktext=list(algo_to_y.keys()))
+            fig.update_yaxes(
+                showticklabels=True,
+                tickvals=list(algo_to_y.values()),
+                ticktext=list(algo_to_y.keys())
+            )
 
             # Add complexity bands as vertical rectangles
             for name, start, end, color in bands:
@@ -707,7 +729,7 @@ with tab2:
             fig.update_layout(
                 xaxis_title="Empirical Complexity Exponent (k in n^k)",
                 yaxis_title="Algorithm",
-                height=500,
+                height=550,
                 legend_title_text="Algorithm"
             )
 
