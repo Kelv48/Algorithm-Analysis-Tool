@@ -658,20 +658,16 @@ with tab2:
             algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
 
             # --- Stagger modes within each algorithm ---
-            stagger_amount = 0.15  # max offset for modes
+            stagger_amount = 0.15
             y_positions = []
 
-            # Use groupby to assign offsets correctly
             def stagger_group(group):
                 n_modes = len(group)
                 if n_modes == 1:
                     offsets = [0.0]
                 else:
                     offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
-                # Assign y_pos for each row in the group
                 return algo_to_y[group.name] + offsets
-
-            # Apply the function per algorithm group
             complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
 
             # --- Assign colors ---

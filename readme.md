@@ -6,6 +6,8 @@ The **Algorithm Analysis Tool** is a Python-based system designed to analyze and
 
 It provides both **single-execution** and **multi-execution dashboards**, allowing users to profile algorithms across multiple input configurations and visualize operational trends.
 
+Additionally, the tool includes empirical complexity measurement, estimating how algorithm operations scale with input size and comparing them against theoretical complexity classes (e.g., O(n), O(n log n), O(n²)).
+
 ---
 
 ## Motivation
@@ -15,7 +17,8 @@ Analyzing algorithm performance is a fundamental skill in computer science, but 
 This tool goes **deeper**, enabling:
 
 - Operation-level profiling (e.g., assignments vs comparisons)  
-- Multi-run analysis across different input sizes and generation modes  
+- Multi-run analysis across different input sizes and generation modes
+- Empirical complexity measurement and visualization
 - Visualizations of algorithm behavior for teaching, research, and optimization purposes  
 
 By instrumenting the **AST of the algorithm**, we avoid modifying source code manually while still collecting detailed execution statistics.
@@ -33,14 +36,15 @@ The tool currently supports:
 | Searching  | linear_search, binary_search       |
 | Graph      | DFS, BFS                          |
 | Scheduling | activity_selection                 |
+| Matrix | matrix_addition, matrix_multiplication |
 
 - Graph algorithms track **nodes and edges** instead of arrays.  
 - Sorting and searching algorithms track arrays and operations on array elements.  
 
 ### Input Generation Modes
 - **random** — randomly generated arrays  
-- **guided** — deterministic, controlled input for testing  
-- **evolution** — optimized or edge-case input generation for performance testing  
+- **edge-case** — generates common edge-case arrays (sorted, reversed, all_same, few_unique)
+- **evolution** — optimizes/modifies a base array
 
 ### Multi-Execution
 - Users can define multiple algorithms, input sizes (`n`), array lengths, and modes.  
@@ -52,6 +56,16 @@ The tool currently supports:
 - Optional graphs for node/edge-based algorithms  
 - Dashboard metrics: total jobs, running, finished
 - For single runs animations are available showing the line of code executed on small input sizes
+
+---
+
+### Complexity Measurement
+- Estimates the growth rate of total ops as n increases
+- Compares measured operation counts against theoretical complexity curves: O(1), O(log n), O(n), O(n log n), O(n²), O(n³)
+- Provides a complexity ladder to show each algos approximate class
+- Global complexity landscape visualizes multiple algorithms and modes, with dots staggered for readability and colored by algorithm
+- Supports mode-level analysis for algorithms, allowing comparisons between random, edge-case, or evolved input scenarios
+This allows students and researchers to see how algorithms scale and whether empirical performance aligns with theoretical expectations
 
 ---
 
@@ -71,7 +85,8 @@ The tool currently supports:
 
 4. **`streamlit_app/multi_execution.py`**  
    - Dashboard for multi-job configuration and execution  
-   - Supports queueing, batch submission, job cancellation, and visualization  
+   - Supports queueing, batch submission, job cancellation, and visualization
+   - Includes complexity analysis tabs with ladders and global landscape plots
 
 ---
 
@@ -130,4 +145,5 @@ def test_simple_arithmetic():
 ## Limitations
 - Large arrays are truncated for visulaisation (MAX_ANIMATION_ARRAY_LENGTH)
 - No GPU acceleration so runs on large input sizes may be slow (depends on the hardware)
+- Complexity measurement is empirical and depends on observed operation counts, which may vary slightly due to input generation or Python execution overhead
 - Current code is limited to predefined algorithms, with expected input formats
