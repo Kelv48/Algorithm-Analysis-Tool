@@ -1,5 +1,5 @@
 import ast, operator, string
-from random import randint, choice, sample
+from random import randint, choice, sample, choices
 import pathlib, joblib, json, time, copy, math
 import streamlit as st
 import pandas as pd
@@ -446,6 +446,7 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
         raise ValueError(f"Unknown mode {mode}")
     return [arr]
 
+
 def search_generation(func_name, n_range, arr_length,
                       mode="random", base_array=None, user_func=None):
     """Generate input array and target for searching algorithms."""
@@ -458,11 +459,11 @@ def search_generation(func_name, n_range, arr_length,
         arr = base_array
 
     else:
-        if arr_length > n_range:
-            raise ValueError("arr_length cannot exceed n_range when generating unique search array values")
-        arr = sample(range(1, n_range + 1), arr_length)
+        if arr_length <= n_range:
+            arr = sample(range(1, n_range + 1), arr_length)
+        else:
+            arr = choices(range(1, n_range + 1), k=arr_length)
 
-    # --- Binary search requires sorted input ---
     if func_name == "binary_search":
         arr = sorted(arr)
 
@@ -534,7 +535,7 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
     """Generate activities (start, end pairs) for scheduling algorithms."""
     if mode == "random":
         activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
-    elif mode == "guided":
+    elif mode == "edge-case":
         case = choice(["all_overlap", "non_overlap", "sequential"])
         if case == "all_overlap":
             start = randint(1, n_range // 2)
@@ -546,7 +547,7 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
             activities = [(i, i + 1) for i in range(arr_length)]
     elif mode == "evolution":
         if base_array is None:
-            raise ValueError("Evolution mode requires a base_array")
+           base_array = [randint(1, n_range) for _ in range(arr_length)]
         activities = base_array.copy()
         # Mutate: swap start/end of random activities
         for _ in range(max(1, arr_length // 5)):
@@ -668,6 +669,8 @@ def estimate_complexity_position(n_vals, ops_vals):
             slope_adjusted = slope_simple
     else:
         slope_adjusted = slope_simple
+
+    slope_adjusted = max(0.0, slope_adjusted)
 
     return float(slope_adjusted)
 

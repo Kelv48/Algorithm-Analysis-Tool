@@ -667,7 +667,7 @@ with tab2:
                     offsets = [0.0]
                 else:
                     offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
-                return algo_to_y[group.name] + offsets
+                return algo_to_y[group.name] + np.array(offsets)
             complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
 
             # --- Assign colors ---
@@ -691,9 +691,10 @@ with tab2:
             )
 
             # --- Scatter plot with staggered y ---
+            complexity_df['slope_clamped'] = complexity_df['slope'].clip(lower=0)
             fig = px.scatter(
                 complexity_df,
-                x="slope",
+                x="slope_clamped",
                 y="y_pos",
                 color="algorithm",
                 text="label",
@@ -703,6 +704,7 @@ with tab2:
             )
 
             fig.update_traces(marker=dict(size=14), textposition="top center")
+            fig.update_xaxes(range=[0, 3.5])
             fig.update_yaxes(
                 showticklabels=True,
                 tickvals=list(algo_to_y.values()),
@@ -728,5 +730,4 @@ with tab2:
                 height=550,
                 legend_title_text="Algorithm"
             )
-
             st.plotly_chart(fig, use_container_width=True)
