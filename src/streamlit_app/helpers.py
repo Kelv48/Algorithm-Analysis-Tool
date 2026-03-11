@@ -625,8 +625,6 @@ def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random",
 
 def base_complexity_curves(n_vals):
 
-    import numpy as np
-
     n = np.array(sorted(n_vals))
 
     curves = {
@@ -637,14 +635,30 @@ def base_complexity_curves(n_vals):
         "O(n²)": n ** 2,
         "O(n³)": n ** 3,
     }
-
-    # normalize relative to O(n²)
     reference = curves["O(n²)"].max()
 
     for key in curves:
         curves[key] = curves[key] / reference
 
     return curves
+
+
+def estimate_complexity_position(n_vals, ops_vals):
+
+    n = np.array(n_vals, dtype=float)
+    ops = np.array(ops_vals, dtype=float)
+
+    mask = (n > 0) & (ops > 0)
+
+    n = n[mask]
+    ops = ops[mask]
+
+    log_n = np.log(n)
+    log_ops = np.log(ops)
+
+    slope, _ = np.polyfit(log_n, log_ops, 1)
+
+    return float(slope)
 
 
 def normalize_curve(curve, target_max):
@@ -657,56 +671,20 @@ def normalize_curve(curve, target_max):
     return curve * (target_max / curve.max())
 
 
+def classify_complexity(slope):
 
-
-def complexity_functions(n):
-    return {
-        "O(1)": np.ones_like(n),
-        "O(log n)": np.log2(n + 1),
-        "O(n)": n,
-        "O(n log n)": n * np.log2(n + 1),
-        "O(n²)": n ** 2,
-        "O(n³)": n ** 3,
-        "O(2ⁿ)": 2 ** n,
-        "O(n!)": np.array([math.factorial(int(x)) if x < 10 else np.nan for x in n])
-    }
-
-
-def estimate_complexity(n_vals, ops_vals):
-
-    n = np.array(n_vals, dtype=float)
-    ops = np.array(ops_vals, dtype=float)
-
-    # remove zeros
-    mask = (n > 0) & (ops > 0)
-    n = n[mask]
-    ops = ops[mask]
-
-    log_n = np.log(n)
-    log_ops = np.log(ops)
-
-    # linear regression on log-log scale
-    slope, intercept = np.polyfit(log_n, log_ops, 1)
-
-    # classify slope
-    if slope < 0.15:
-        complexity = "O(1)"
+    if slope < 0.2:
+        return "O(1)"
     elif slope < 0.6:
-        complexity = "O(log n)"
+        return "O(log n)"
     elif slope < 1.2:
-        complexity = "O(n)"
+        return "O(n)"
     elif slope < 1.6:
-        complexity = "O(n log n)"
+        return "O(n log n)"
     elif slope < 2.4:
-        complexity = "O(n²)"
-    elif slope < 3.2:
-        complexity = "O(n³)"
+        return "O(n²)"
     else:
-        complexity = "O(n^k)"
-
-    predicted = np.exp(intercept) * (n ** slope)
-
-    return complexity, predicted, slope
+        return "O(n³)"
 
 
 # Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well

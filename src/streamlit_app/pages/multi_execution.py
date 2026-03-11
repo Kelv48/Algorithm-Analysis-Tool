@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 
 from navigation import show_sidebar
-from helpers import run_ast_analysis, graph_generation, apply_seed, search_generation, sorting_generation, activity_generation, base_complexity_curves, normalize_curve
+from helpers import run_ast_analysis, graph_generation, apply_seed, search_generation, sorting_generation, activity_generation, base_complexity_curves, estimate_complexity_position, classify_complexity
 
 
 # Paths
@@ -521,15 +521,18 @@ with tab1:
 
 
 with tab2:
+
     st.header("Complexity Analysis")
 
     results = collect_completed_results()
 
     if results.empty:
-        st.info("Run some jobs first.")
+        st.info("Run some jobs first to estimate complexity.")
     else:
 
         algorithms = results["algorithm"].unique()
+
+        log_scale = st.checkbox("Use Log-Log Scale", value=True)
 
         for algo in algorithms:
 
@@ -537,39 +540,52 @@ with tab2:
 
             df = results[results["algorithm"] == algo]
 
-            if "n" in df.columns:
-                x = df["n"].values
-            elif "arr_length" in df.columns:
-                x = df["arr_length"].values
+            if "arr_length" in df.columns:
+                size_col = "arr_length"
+            elif "n" in df.columns:
+                size_col = "n"
             elif "nodes" in df.columns:
-                x = df["nodes"].values
+                size_col = "nodes"
+            elif "rows_A" in df.columns:
+                df["matrix_size"] = df["rows_A"] * df["cols_A"]
+                size_col = "matrix_size"
             else:
-                st.warning("No valid size metric.")
+                st.warning("No valid input size dimension found.")
                 continue
 
-            y = df["total_operations"].values
+            # Aggregate duplicates (removes vertical spikes)
+            df_clean = (
+                df
+                .groupby(size_col)["total_operations"]
+                .median()
+                .reset_index()
+                .sort_values(size_col)
+            )
 
-            if len(x) < 2:
-                st.warning("Need multiple measurements.")
+            df_regression = df_clean.tail(min(6, len(df_clean)))
+
+            x = df_clean[size_col].values
+            y = df_clean["total_operations"].values
+
+            x_reg = df_regression[size_col].values
+            y_reg = df_regression["total_operations"].values
+
+            if len(x) < 3:
+                st.warning("Need at least 3 points.")
                 continue
-
-            # Sort for plotting
-            order = np.argsort(x)
-            x = x[order]
-            y = y[order]
 
             base_curves = base_complexity_curves(x)
 
             fig = px.scatter(
                 x=x,
                 y=y,
-                title=f"{algo} vs Theoretical Complexities",
-                labels={"x": "Input Size", "y": "Operations"}
+                labels={"x": "Input Size", "y": "Operations"},
+                title=f"{algo} vs Theoretical Complexities"
             )
 
             fig.data[0].name = "Measured Algorithm"
 
-            scale = max(y)   # max algorithm operations
+            scale = max(y)
 
             for name, curve in base_curves.items():
 
@@ -583,6 +599,66 @@ with tab2:
                     line=dict(dash="dash")
                 )
 
-            fig.update_layout(height=500)
+            if log_scale:
+                fig.update_xaxes(type="log")
+                fig.update_yaxes(type="log")
 
             st.plotly_chart(fig, use_container_width=True)
+
+            # ---------- Complexity Ladder ----------
+
+            slope = estimate_complexity_position(x_reg, y_reg)
+            complexity_class = classify_complexity(slope)
+
+            st.markdown(f"### Complexity Ladder Position")
+            st.markdown(f"Estimated complexity: **{complexity_class}**  (slope ≈ {slope:.2f})")
+
+            ladder = [
+                "O(1)",
+                "O(log n)",
+                "O(n)",
+                "O(n log n)",
+                "O(n²)",
+                "O(n³)"
+            ]
+
+            ladder_df = pd.DataFrame({
+                "Complexity": ladder,
+                "Position": list(range(len(ladder), 0, -1))
+            })
+
+            algo_pos = ladder.index(complexity_class)
+
+            ladder_df["Algorithm"] = [
+                algo if i == algo_pos else ""
+                for i in range(len(ladder))
+            ]
+
+            fig_ladder = px.scatter(
+                ladder_df,
+                x=[" "] * len(ladder_df),
+                y="Position",
+                text="Complexity",
+                title="Complexity Ladder",
+                height=400
+            )
+
+            fig_ladder.update_traces(marker=dict(size=12))
+
+            fig_ladder.add_scatter(
+                x=[" "],
+                y=[ladder_df.iloc[algo_pos]["Position"]],
+                mode="markers+text",
+                text=[algo],
+                textposition="middle right",
+                marker=dict(size=20, symbol="diamond"),
+                name="Algorithm"
+            )
+
+            fig_ladder.update_xaxes(showticklabels=False)
+            fig_ladder.update_yaxes(
+                tickvals=ladder_df["Position"],
+                ticktext=ladder_df["Complexity"]
+            )
+
+            st.plotly_chart(fig_ladder, use_container_width=True)
