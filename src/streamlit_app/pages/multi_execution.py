@@ -2,6 +2,7 @@ import pathlib
 import sys
 import itertools
 import random
+import numpy as np
 from itertools import product
 from concurrent.futures import ThreadPoolExecutor
 from streamlit_autorefresh import st_autorefresh
@@ -11,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 
 from navigation import show_sidebar
-from helpers import run_ast_analysis, graph_generation, apply_seed, search_generation, sorting_generation, activity_generation
+from helpers import run_ast_analysis, graph_generation, apply_seed, search_generation, sorting_generation, activity_generation, base_complexity_curves, normalize_curve
 
 
 # Paths
@@ -519,8 +520,69 @@ with tab1:
             st.success("System reset.")
 
 
-
 with tab2:
     st.header("Complexity Analysis")
 
-    st.info("This code is not implemented")
+    results = collect_completed_results()
+
+    if results.empty:
+        st.info("Run some jobs first.")
+    else:
+
+        algorithms = results["algorithm"].unique()
+
+        for algo in algorithms:
+
+            st.subheader(algo)
+
+            df = results[results["algorithm"] == algo]
+
+            if "n" in df.columns:
+                x = df["n"].values
+            elif "arr_length" in df.columns:
+                x = df["arr_length"].values
+            elif "nodes" in df.columns:
+                x = df["nodes"].values
+            else:
+                st.warning("No valid size metric.")
+                continue
+
+            y = df["total_operations"].values
+
+            if len(x) < 2:
+                st.warning("Need multiple measurements.")
+                continue
+
+            # Sort for plotting
+            order = np.argsort(x)
+            x = x[order]
+            y = y[order]
+
+            base_curves = base_complexity_curves(x)
+
+            fig = px.scatter(
+                x=x,
+                y=y,
+                title=f"{algo} vs Theoretical Complexities",
+                labels={"x": "Input Size", "y": "Operations"}
+            )
+
+            fig.data[0].name = "Measured Algorithm"
+
+            scale = max(y)   # max algorithm operations
+
+            for name, curve in base_curves.items():
+
+                scaled = curve * scale
+
+                fig.add_scatter(
+                    x=x,
+                    y=scaled,
+                    mode="lines",
+                    name=name,
+                    line=dict(dash="dash")
+                )
+
+            fig.update_layout(height=500)
+
+            st.plotly_chart(fig, use_container_width=True)
