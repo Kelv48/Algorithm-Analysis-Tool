@@ -158,7 +158,7 @@ with tab1:
 
             mode_input = st.radio(
                 "Input Generation Mode",
-                ["Random", "Edge-case / Edge-case", "Evolutionary", "User-defined"],
+                ["Random", "Edge-case", "Evolutionary", "User-defined"],
                 horizontal=True,
                 help="Choose an mode to be used to generate the array"
             )
