@@ -547,8 +547,9 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
             activities = [(i, i + 1) for i in range(arr_length)]
     elif mode == "evolution":
         if base_array is None:
-           base_array = [randint(1, n_range) for _ in range(arr_length)]
-        activities = base_array.copy()
+            activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
+        else:
+            activities = base_array.copy()
         # Mutate: swap start/end of random activities
         for _ in range(max(1, arr_length // 5)):
             i = randint(0, arr_length - 1)
