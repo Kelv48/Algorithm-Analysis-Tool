@@ -1,447 +1,149 @@
-# 4th Year Project | Algorithm Analysis Tool
+# Algorithm Analysis Tool | 4th Year Project
 
-This module uses Python’s `ast` library to instrument source code at runtime and count specific program operations, including:
+## Overview
 
-- Assignments  
-- Indexing operations  
-- Function calls  
-- Comparisons  
-- Arithmetic operations  
+The **Algorithm Analysis Tool** is a Python-based system designed to analyze and visualize the execution behavior of algorithms in real-time. By instrumenting code at runtime using Python’s `ast` library, this tool tracks key operations such as assignments, indexing, arithmetic, comparisons, function calls, and loop iterations.  
 
-The system works by transforming the program’s Abstract Syntax Tree (AST) and injecting counter functions before execution.
+It provides both **single-execution** and **multi-execution dashboards**, allowing users to profile algorithms across multiple input configurations and visualize operational trends.
+
+Additionally, the tool includes empirical complexity measurement, estimating how algorithm operations scale with input size and comparing them against theoretical complexity classes (e.g., O(n), O(n log n), O(n²)).
 
 ---
 
-## To Run
+## Motivation
 
-- Windows
-```python
-streamlit run src/streamlit_app/app.py --client.showSidebarNavigation=False
-```
+Analyzing algorithm performance is a fundamental skill in computer science, but traditional profiling tools often provide only coarse metrics such as execution time or memory usage.  
 
-- Linux/MacOS
-```bash
-./run_streamlit.sh
-```
+This tool goes **deeper**, enabling:
 
----
+- Operation-level profiling (e.g., assignments vs comparisons)  
+- Multi-run analysis across different input sizes and generation modes
+- Empirical complexity measurement and visualization
+- Visualizations of algorithm behavior for teaching, research, and optimization purposes  
 
-## Dependencies
-
-This module relies heavily on Python’s built-in `ast` module:
-
-```python
-import ast
-```
-
-The `ast.NodeTransformer` class is used to traverse and modify the syntax tree.
-
-Also in use are 
-- `matplotlib`
-- `streamlit`
-- `pandas`
-- `plotly`
-- `pytest`
+By instrumenting the **AST of the algorithm**, we avoid modifying source code manually while still collecting detailed execution statistics.
 
 ---
 
-## Global Counters
+## Features
 
-All operation counts are stored in a shared dictionary:
+### Algorithm Support
+The tool currently supports:
 
-```python
-COUNTERS = {
-    "assignments": 0,
-    "indexing": 0,
-    "function_calls": 0,
-    "comparisons": 0,
-    "arithmetic": 0
-}
-```
+| Category   | Algorithms                         |
+|------------|-----------------------------------|
+| Sorting    | bubble_sort, merge_sort, insertion_sort, quicksort |
+| Searching  | linear_search, binary_search       |
+| Graph      | DFS, BFS                          |
+| Scheduling | activity_selection                 |
+| Matrix | matrix_addition, matrix_multiplication |
 
-Each key represents a category of tracked operations, while the corresponding value stores the cumulative count.
+- Graph algorithms track **nodes and edges** instead of arrays.  
+- Sorting and searching algorithms track arrays and operations on array elements.  
 
----
+### Input Generation Modes
+- **random** — randomly generated arrays  
+- **edge-case** — generates common edge-case arrays (sorted, reversed, all_same, few_unique)
+- **evolution** — optimizes/modifies a base array
 
-# Runtime Counter Functions
+### Multi-Execution
+- Users can define multiple algorithms, input sizes (`n`), array lengths, and modes.  
+- The system computes **all combinations** and queues jobs automatically.  
+- Jobs can be **submitted, canceled, or dropped from the queue** before execution.  
 
-These functions are injected into the transformed program and executed during runtime. Each function increments its respective counter and returns the original operation result.
-
----
-
-## Arithmetic Counter
-
-### `count_arith(a, op, b)`
-
-Tracks binary arithmetic operations.
-
-### Purpose
-
-- Increments the arithmetic operation counter  
-- Applies the requested operator to the provided operands  
-- Returns the computed result  
-
-### Implementation
-
-```python
-def count_arith(a, op, b):
-    COUNTERS["arithmetic"] += 1
-    return op(a, b)
-```
+### Visualization
+- Bar charts of operation counts per job: assignments, comparisons, arithmetic operations, function calls, loop iterations  
+- Optional graphs for node/edge-based algorithms  
+- Dashboard metrics: total jobs, running, finished
+- For single runs animations are available showing the line of code executed on small input sizes
 
 ---
 
-## Assignment Counter
-
-### `count_assign(value)`
-
-Tracks variable assignments.
-
-### Purpose
-
-- Increments the assignment counter  
-- Returns the assigned value unchanged  
-
-### Implementation
-
-```python
-def count_assign(value):
-    COUNTERS["assignments"] += 1
-    return value
-```
+### Complexity Measurement
+- Estimates the growth rate of total ops as n increases
+- Compares measured operation counts against theoretical complexity curves: O(1), O(log n), O(n), O(n log n), O(n²), O(n³)
+- Provides a complexity ladder to show each algos approximate class
+- Global complexity landscape visualizes multiple algorithms and modes, with dots staggered for readability and colored by algorithm
+- Supports mode-level analysis for algorithms, allowing comparisons between random, edge-case, or evolved input scenarios
+This allows students and researchers to see how algorithms scale and whether empirical performance aligns with theoretical expectations
 
 ---
 
-## Indexing Counter
+### Key Components
+1. **`execution_session.py`**  
+   - Maintains counters for each operation type  
+   - Tracks histories of arrays or graph nodes  
+   - Provides methods such as `count_assign`, `count_index`, `count_compare`, `count_arith`, `count_loop_iteration`  
 
-### `count_index(obj, key)`
+2. **`ast_visitor.py`**  
+   - Traverses AST using `ast.NodeTransformer`  
+   - Injects calls to the execution session counters before running code  
 
-Tracks indexing operations such as list and dictionary access.
+3. **`streamlit_app/single_execution.py`**  
+   - Dashboard for single-job configuration and execution  
+   - Supports history, job cancellation, and visualization/animating the steps  
 
-### Purpose
-
-- Increments the indexing counter  
-- Returns the accessed element  
-
-### Implementation
-
-```python
-def count_index(obj, key):
-    COUNTERS["indexing"] += 1
-    return obj[key]
-```
-
----
-
-## Function Call Counter
-
-### `count_call(fn, *args, **kwargs)`
-
-Tracks function invocations.
-
-### Purpose
-
-- Increments the function call counter  
-- Executes the original function call  
-- Returns the function result  
-
-### Implementation
-
-```python
-def count_call(fn, *args, **kwargs):
-    COUNTERS["function_calls"] += 1
-    return fn(*args, **kwargs)
-```
+4. **`streamlit_app/multi_execution.py`**  
+   - Dashboard for multi-job configuration and execution  
+   - Supports queueing, batch submission, job cancellation, and visualization
+   - Includes complexity analysis tabs with ladders and global landscape plots
 
 ---
 
-## Comparison Counter
+## Example: Instrumented Code
 
-### `count_compare(a, op, b)`
-
-Tracks comparison operations.
-
-### Purpose
-
-- Increments the comparison counter  
-- Applies the comparison operator  
-- Returns the boolean result  
-
-### Implementation
-
-```python
-def count_compare(a, op, b):
-    COUNTERS["comparisons"] += 1
-    return op(a, b)
-```
-
----
-
-# AST Transformer
-
-The `ASTVisitor` class extends `ast.NodeTransformer` and overrides specific visitor methods to replace syntax nodes with instrumented equivalents.
-
-Python automatically calls `visit_*` methods when traversing the AST.
-
----
-
-## Class Definition
-
-```python
-class ASTVisitor(ast.NodeTransformer):
-```
-
----
-
-## Assignment Instrumentation
-
-### Method: `visit_Assign`
-
-Transforms assignment expressions by wrapping the assigned value with `count_assign`.
-
-### Example Transformation
-
-Original:
+Original code:
 
 ```python
 x = 5
+y = x + 2
 ```
 
-Instrumented:
-
+Instrumented at Runtime
 ```python
-x = count_assign(5)
+x = SESSION.count_assign(5, arrays=[arr], line_no=1)
+y = SESSION.count_arith(SESSION.count_index(x, None), operator.add, 2, arrays=[arr], line_no=2)
 ```
 
-### Implementation
 
-```python
-def visit_Assign(self, node):
-    node = self.generic_visit(node)
-    node.value = ast.Call(
-        func=ast.Name(id="count_assign", ctx=ast.Load()),
-        args=[node.value],
-        keywords=[]
-    )
-    return node
+## Usage
+
+### Instalation
+```bash
+pip install .
 ```
 
+### Run on Windows
+```sh
+streamlit run src/streamlit_app/app.py --client.showSidebarNavigation=False
+```
+
+### Run on MacOS/Linux
+```sh
+./run_streamlit.sh
+```
 ---
 
-## Indexing Instrumentation
-
-### Method: `visit_Subscript`
-
-Wraps indexing operations with `count_index`, excluding assignment targets such as:
-
-```python
-arr[i] = x
-```
-
-### Example Transformation
-
-Original:
+## Testing
+Unit tests are provided to ensure the correct counting of operations
+- Assignments, arithmetic and comparisons
+- Indexing
+- Function calls
+- Loop iterations
+- Cumulative counts
 
 ```python
-arr[i]
+def test_simple_arithmetic():
+    session = ExecutionSession()
+    counters, history = session.run("x = 1 + 2")
+    assert counters["arithmetic"] == 1
+    assert counters["assignments"] == 1
+    assert_last_history(session, "arithmetic", -2)
+    assert_last_history(session, "assignment", -1)
 ```
 
-Instrumented:
-
-```python
-count_index(arr, i)
-```
-
-### Implementation
-
-```python
-def visit_Subscript(self, node):
-    node = self.generic_visit(node)
-
-    if isinstance(node.ctx, ast.Store):
-        return node
-        
-    return ast.Call(
-        func=ast.Name(id="count_index", ctx=ast.Load()),
-        args=[node.value, node.slice],
-        keywords=[]
-    )
-```
-
----
-
-## Function Call Instrumentation
-
-### Method: `visit_Call`
-
-Wraps function calls with `count_call`.
-
-### Example Transformation
-
-Original:
-
-```python
-foo(x)
-```
-
-Instrumented:
-
-```python
-count_call(foo, x)
-```
-
-### Implementation
-
-```python
-def visit_Call(self, node):
-    node = self.generic_visit(node)
-    return ast.Call(
-        func=ast.Name(id="count_call", ctx=ast.Load()),
-        args=[node.func] + node.args,
-        keywords=[]
-    )
-```
-
----
-
-## Comparison Instrumentation
-
-### Method: `visit_Compare`
-
-Maps Python comparison operators to the corresponding functions in the `operator` module and wraps them with `count_compare`.
-
-### Example Transformation
-
-Original:
-
-```python
-a < b
-```
-
-Instrumented:
-
-```python
-count_compare(a, operator.lt, b)
-```
-
-### Supported Operators
-
-| Operator | Mapping |
-|---------|---------|
-| `<` | `lt` |
-| `>` | `gt` |
-| `==` | `eq` |
-| `!=` | `ne` |
-| `<=` | `le` |
-| `>=` | `ge` |
-| `is` | `is` |
-| `is not` | `is_not` |
-| `in` | `in` |
-| `not in` | `not_in` |
-
-### Implementation
-
-```python
-def visit_Compare(self, node):
-    node = self.generic_visit(node)
-
-    op_map = {
-        ast.Lt: "lt",
-        ast.Gt: "gt",
-        ast.Eq: "eq",
-        ast.NotEq: "ne",
-        ast.LtE: "le",
-        ast.GtE: "ge",
-        ast.Is: "is",
-        ast.IsNot: "is_not",
-        ast.In: "in",
-        ast.NotIn: "not_in"
-    }
-
-    op = op_map.get(type(node.ops[0]))
-    if not op:
-        return node
-
-    return ast.Call(
-        func=ast.Name(id="count_compare", ctx=ast.Load()),
-        args=[
-            node.left,
-            ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()),
-            node.comparators[0],
-        ],
-        keywords=[]
-    )
-```
-
----
-
-## Arithmetic Instrumentation
-
-### Method: `visit_BinOp`
-
-Wraps binary arithmetic operations using `count_arith`.
-
-### Supported Operations
-
-- Addition  
-- Subtraction  
-- Multiplication  
-- Division  
-- Floor division  
-- Modulo  
-- Power  
-- Bitwise operations  
-- Matrix multiplication  
-
-### Example Transformation
-
-Original:
-
-```python
-a + b
-```
-
-Instrumented:
-
-```python
-count_arith(a, operator.add, b)
-```
-
-### Implementation
-
-```python
-def visit_BinOp(self, node):
-    node = self.generic_visit(node)
-
-    if not isinstance(node.parent, ast.Assign):
-        op_map = {
-            ast.Add: "add",
-            ast.Sub: "sub",
-            ast.Mult: "mul",
-            ast.Div: "truediv",
-            ast.FloorDiv: "floordiv",
-            ast.Mod: "mod",
-            ast.Pow: "pow",
-            ast.LShift: "lshift",
-            ast.RShift: "rshift",
-            ast.BitOr: "or",
-            ast.BitXor: "xor",
-            ast.BitAnd: "and_",
-            ast.MatMult: "matmul"
-        }
-
-        op = op_map.get(type(node.op))
-        if op:
-            return ast.Call(
-                func=ast.Name(id="count_arith", ctx=ast.Load()),
-                args=[
-                    node.left,
-                    ast.Attribute(value=ast.Name(id="operator", ctx=ast.Load()), attr=op, ctx=ast.Load()),
-                    node.right
-                ],
-                keywords=[]
-            )
-    return node
-```
-
----
+## Limitations
+- Large arrays are truncated for visulaisation (MAX_ANIMATION_ARRAY_LENGTH)
+- No GPU acceleration so runs on large input sizes may be slow (depends on the hardware)
+- Complexity measurement is empirical and depends on observed operation counts, which may vary slightly due to input generation or Python execution overhead
+- Current code is limited to predefined algorithms, with expected input formats

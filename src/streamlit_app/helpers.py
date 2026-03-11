@@ -1,20 +1,30 @@
 import ast, operator, string
-from random import randint, choice, sample
-import pathlib, joblib, json, time, copy
+from random import randint, choice, sample, choices
+import pathlib, joblib, json, time, copy, math
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 from algorithm_analysis_tool.ast_helpers import resolve_helpers
 from algorithm_analysis_tool.ast_visitor import ASTVisitor
 from algorithm_analysis_tool.execution_session import ExecutionSession, not_in
+from algorithm_analysis_tool.config import SORTING_ALGOS, SEARCH_ALGOS, GRAPH_ALGOS, ACTIVITY_ALGOS, MATRIX_ALGOS
 
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 algo_path = root/ "src" / "algorithm_analysis_tool" / "algorithms.py"
 
+
+def apply_seed(seed):
+    if seed:
+        import random
+        import numpy as np
+        random.seed(seed)
+        np.random.seed(seed)
+
 # Ast Runner
 
-def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, **kwargs):
+def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, random_seed=0, **kwargs):
     """
     Execute an algorithm with AST instrumentation using ExecutionSession,
     recording operation counts and maintaining a local history of operations
@@ -40,6 +50,8 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             }
         }
     """
+    if random_seed:
+        apply_seed(random_seed)
     session = ExecutionSession()
 
     with open(algo_path, "r") as f:
@@ -62,7 +74,7 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
 
     exec_globals = {
         "SESSION": session,            
-        "arrays": [input_arr] if input_arr else [],
+        "arrays": copy.deepcopy(input_arr) if input_arr else [],
         "operator": operator,
         "not_in": not_in
     }
@@ -70,30 +82,44 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     code_obj = compile(module_ast, filename="<ast>", mode="exec")
     exec(code_obj, exec_globals)
 
-    sorting_algos = {"bubble_sort", "merge_sort", "insertion_sort", "quicksort"}
-    search_algos = {"linear_search", "binary_search"}
-    graph_algos = {"dfs", "bfs"}
-    activity_algos = {"activity_selection"}
+
 
     # Prepare input for the function
     if input_generated:
-        final_args = [copy.deepcopy(a) for a in input_arr] if isinstance(input_arr, list) else copy.deepcopy(input_arr)
+        if func_name in SORTING_ALGOS | SEARCH_ALGOS | ACTIVITY_ALGOS:
+            if isinstance(input_arr, tuple):  
+                # Search algorithm: (arr, target)
+                final_args = [copy.deepcopy(input_arr[0]), input_arr[1]]
+            elif input_arr is not None:
+                final_args = [copy.deepcopy(input_arr)]  
+            else:
+                final_args = []
+        else:
+            final_args = [copy.deepcopy(a) for a in input_arr] if isinstance(input_arr, list) else copy.deepcopy(input_arr)
+              
     else:
         match func_name:
-            case name if name in sorting_algos:
+            case name if name in SORTING_ALGOS:
                 final_args = sorting_generation(func_name, *args, mode=input_mode)
-            case name if name in search_algos:
+            case name if name in SEARCH_ALGOS:
                 final_args = search_generation(func_name, *args, mode=input_mode)
-            case name if name in graph_algos:
+            case name if name in GRAPH_ALGOS:
                 final_args = graph_generation(func_name, *args)
-            case name if name in activity_algos:
+            case name if name in ACTIVITY_ALGOS:
                 final_args = activity_generation(func_name, *args, mode=input_mode)
+            case name if name in MATRIX_ALGOS:
+                final_args = matrix_generation(func_name, *args, mode=input_mode)
             case _:
                 raise ValueError(f"Unknown function {func_name} for input generation")
         final_args = [copy.deepcopy(arg) for arg in final_args]
 
-    # Assign arrays for instrumentation and run
-    exec_globals["arrays"] = [final_args[0]] if isinstance(final_args, list) else []
+    if func_name in MATRIX_ALGOS:
+        exec_globals["arrays"] = [copy.deepcopy(final_args[0]),
+                                copy.deepcopy(final_args[1])]
+    elif isinstance(final_args, list):
+        exec_globals["arrays"] = [copy.deepcopy(final_args[0])]
+    else:
+        exec_globals["arrays"] = []
     exec_globals[func_name](*final_args, **kwargs)
 
     return {
@@ -104,7 +130,8 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             "length": extract_input_length(final_args),
             "algorithm": func_name,
             "input_mode": input_mode
-        }
+        },
+        "job_id" : job_id
     }
 
 
@@ -132,7 +159,7 @@ def extract_input_length(input_args):
 
 # Visualization helper functions 
 
-def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_animation_length=5, algorithm_name=""):
+def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, max_animation_length=20, algorithm_name=""):
     st.subheader(f"Algorithm Step-through Visualization for {algorithm_name}")
 
     if not history:
@@ -144,7 +171,7 @@ def visualize_algorithm(history, source_code, array_name="arrays", delay=1, max_
     if mode == "array":
         first_arrays = history[0].get(array_name) or []
         if first_arrays and len(first_arrays[0]) > max_animation_length:
-            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for large arrays.")
+            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for arrays larger than 20.")
             return
         array_placeholders = [st.empty() for _ in range(len(first_arrays))]
     else:
@@ -390,7 +417,7 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
     """Generate input array for sorting algorithms."""
     if mode == "random":
         arr = [randint(1, n_range) for _ in range(arr_length)]
-    elif mode == "guided":
+    elif mode == "edge-case":
         # Generate common edge-case arrays
         case = choice(["sorted", "reverse", "all_same", "few_unique"])
         if case == "sorted":
@@ -419,6 +446,7 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
         raise ValueError(f"Unknown mode {mode}")
     return [arr]
 
+
 def search_generation(func_name, n_range, arr_length,
                       mode="random", base_array=None, user_func=None):
     """Generate input array and target for searching algorithms."""
@@ -431,11 +459,11 @@ def search_generation(func_name, n_range, arr_length,
         arr = base_array
 
     else:
-        if arr_length > n_range:
-            raise ValueError("arr_length cannot exceed n_range when generating unique search array values")
-        arr = sample(range(1, n_range + 1), arr_length)
+        if arr_length <= n_range:
+            arr = sample(range(1, n_range + 1), arr_length)
+        else:
+            arr = choices(range(1, n_range + 1), k=arr_length)
 
-    # --- Binary search requires sorted input ---
     if func_name == "binary_search":
         arr = sorted(arr)
 
@@ -507,7 +535,7 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
     """Generate activities (start, end pairs) for scheduling algorithms."""
     if mode == "random":
         activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
-    elif mode == "guided":
+    elif mode == "edge-case":
         case = choice(["all_overlap", "non_overlap", "sequential"])
         if case == "all_overlap":
             start = randint(1, n_range // 2)
@@ -519,8 +547,9 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
             activities = [(i, i + 1) for i in range(arr_length)]
     elif mode == "evolution":
         if base_array is None:
-            raise ValueError("Evolution mode requires a base_array")
-        activities = base_array.copy()
+            activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
+        else:
+            activities = base_array.copy()
         # Mutate: swap start/end of random activities
         for _ in range(max(1, arr_length // 5)):
             i = randint(0, arr_length - 1)
@@ -533,5 +562,144 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
     else:
         raise ValueError(f"Unknown mode {mode}")
     return [activities]
+
+
+
+
+def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random", base_array=None, user_func=None):
+
+    def generate_A():
+        return [[randint(1, n_range) for _ in range(cols_A)]
+                for _ in range(rows_A)]
+
+    def generate_B():
+        return [[randint(1, n_range) for _ in range(cols_B)]
+                for _ in range(cols_A)]
+
+    # ------------------ MODES ------------------
+
+    if mode == "random":
+        A = generate_A()
+        B = generate_B()
+
+    elif mode == "edge-case":
+        case = choice(["all_same", "identity_like", "zeros"])
+
+        if case == "all_same":
+            val = randint(1, n_range)
+            A = [[val for _ in range(cols_A)] for _ in range(rows_A)]
+            B = [[val for _ in range(cols_B)] for _ in range(cols_A)]
+
+        elif case == "identity_like" and rows_A == cols_A:
+            A = [[1 if i == j else 0 for j in range(cols_A)]
+                 for i in range(rows_A)]
+            B = generate_B()
+
+        else: 
+            A = [[0 for _ in range(cols_A)] for _ in range(rows_A)]
+            B = generate_B()
+
+    elif mode == "evolution":
+        if base_array is None:
+            base_array = generate_A()
+
+        A = [row[:] for row in base_array]
+        B = generate_B()
+
+        mutations = max(1, (rows_A * cols_A) // 5)
+        for _ in range(mutations):
+            i = randint(0, rows_A - 1)
+            j = randint(0, cols_A - 1)
+            A[i][j] = randint(1, n_range)
+
+    elif mode == "user":
+        if user_func is None:
+            raise ValueError("User mode requires user_func")
+        A, B = user_func(n_range, rows_A, cols_A, cols_B)
+
+    else:
+        raise ValueError(f"Unknown mode {mode}")
+
+    return [A, B]
+
+
+# Multi Run Helpers
+
+def base_complexity_curves(n_vals):
+
+    n = np.array(sorted(n_vals))
+
+    curves = {
+        "O(1)": np.ones_like(n),
+        "O(log n)": np.log2(n + 1),
+        "O(n)": n,
+        "O(n log n)": n * np.log2(n + 1),
+        "O(n²)": n ** 2,
+        "O(n³)": n ** 3,
+    }
+    reference = curves["O(n²)"].max()
+
+    for key in curves:
+        curves[key] = curves[key] / reference
+
+    return curves
+
+
+def estimate_complexity_position(n_vals, ops_vals):
+    n = np.array(n_vals, dtype=float)
+    ops = np.array(ops_vals, dtype=float)
+
+    mask = (n > 0) & (ops > 0)
+    n = n[mask]
+    ops = ops[mask]
+
+    if len(n) < 2:
+        return 0.0 
+
+    log_n = np.log(n)
+    log_ops = np.log(ops)
+    slope_simple, _ = np.polyfit(log_n, log_ops, 1)
+
+    if slope_simple < 1.5:
+        log_ops_over_n = np.log(ops / n)
+        log_log_n = np.log(np.log(n + 1))
+        if len(log_log_n) > 1 and np.all(log_log_n > 0):
+            slope_log = np.polyfit(log_log_n, log_ops_over_n, 1)[0]
+            slope_adjusted = slope_simple + slope_log * 0.3
+        else:
+            slope_adjusted = slope_simple
+    else:
+        slope_adjusted = slope_simple
+
+    slope_adjusted = max(0.0, slope_adjusted)
+
+    return float(slope_adjusted)
+
+
+def normalize_curve(curve, target_max):
+
+    curve = np.array(curve, dtype=float)
+
+    if curve.max() == 0:
+        return curve
+
+    return curve * (target_max / curve.max())
+
+
+def classify_complexity(slope):
+
+    if slope < 0.2:
+        return "O(1)"
+    elif slope < 0.6:
+        return "O(log n)"
+    elif slope < 1.1:
+        return "O(n)"
+    elif slope < 1.5:
+        return "O(n log n)"
+    elif slope < 2.4:
+        return "O(n²)"
+    else:
+        return "O(n³)"
+
 
 # Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well
