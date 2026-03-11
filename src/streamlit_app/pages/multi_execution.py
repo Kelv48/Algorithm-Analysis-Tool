@@ -522,7 +522,13 @@ with tab1:
 
 with tab2:
 
-    st.header("Complexity Analysis")
+    st.title("📊 Interactive Algorithm Complexity Dashboard")
+    st.markdown(
+        """
+        Explore the empirical complexity of your algorithms. 
+        Compare measured operations against theoretical curves and see where each algorithm falls on the complexity ladder.
+        """
+    )
 
     results = collect_completed_results()
 
@@ -530,192 +536,162 @@ with tab2:
         st.info("Run some jobs first to estimate complexity.")
     else:
 
-        algorithms = results["algorithm"].unique()
+        # --- Filters ---
+        all_algorithms = results["algorithm"].unique()
+        selected_algos = st.multiselect("Select Algorithms to Display", all_algorithms, default=list(all_algorithms))
 
-        log_scale = st.checkbox("Use Log-Log Scale", value=True)
+        all_modes = results["mode"].unique() if "mode" in results.columns else ["default"]
+        selected_modes = st.multiselect("Select Modes to Display", all_modes, default=list(all_modes))
+
+        log_scale = st.checkbox("Use Log-Log Scale", value=True, help="Display axes in log scale for better visualization of large ranges.")
 
         complexity_rows = []
 
-        for algo in algorithms:
+        for algo in selected_algos:
 
-            st.subheader(algo)
+            df_algo = results[results["algorithm"] == algo]
+            for mode in selected_modes:
 
-            df = results[results["algorithm"] == algo]
+                df = df_algo[df_algo["mode"] == mode] if "mode" in df_algo.columns else df_algo
 
-            if "arr_length" in df.columns:
-                size_col = "arr_length"
-            elif "n" in df.columns:
-                size_col = "n"
-            elif "nodes" in df.columns:
-                size_col = "nodes"
-            elif "rows_A" in df.columns:
-                df["matrix_size"] = df["rows_A"] * df["cols_A"]
-                size_col = "matrix_size"
-            else:
-                st.warning("No valid input size dimension found.")
-                continue
+                if df.empty:
+                    continue
 
-            # Aggregate duplicates (removes vertical spikes)
-            df_clean = (
-                df
-                .groupby(size_col)["total_operations"]
-                .median()
-                .reset_index()
-                .sort_values(size_col)
+                st.markdown(f"## 🔹 {algo} ({mode})")
+
+                # --- Determine input size ---
+                if "arr_length" in df.columns:
+                    size_col = "arr_length"
+                elif "n" in df.columns:
+                    size_col = "n"
+                elif "nodes" in df.columns:
+                    size_col = "nodes"
+                elif "rows_A" in df.columns:
+                    df["matrix_size"] = df["rows_A"] * df["cols_A"]
+                    size_col = "matrix_size"
+                else:
+                    st.warning("No valid input size dimension found.")
+                    continue
+
+                # Aggregate duplicates
+                df_clean = df.groupby(size_col)["total_operations"].median().reset_index().sort_values(size_col)
+                if len(df_clean) < 3:
+                    st.warning("Need at least 3 data points to estimate complexity.")
+                    continue
+
+                x = df_clean[size_col].values
+                y = df_clean["total_operations"].values
+
+                # --- Complexity vs Theoretical Curves ---
+                base_curves = base_complexity_curves(x)
+                fig = px.scatter(
+                    x=x,
+                    y=y,
+                    labels={"x": "Input Size", "y": "Operations"},
+                    title=f"{algo} vs Theoretical Complexity Curves"
+                )
+                fig.data[0].name = f"{algo} ({mode})"
+
+                scale = max(y)
+                for name, curve in base_curves.items():
+                    fig.add_scatter(
+                        x=x,
+                        y=curve * scale,
+                        mode="lines",
+                        name=f"{name} (theoretical)",
+                        line=dict(dash="dash")
+                    )
+
+                if log_scale:
+                    fig.update_xaxes(type="log")
+                    fig.update_yaxes(type="log")
+
+                fig.update_layout(legend_title_text="Algorithm / Curve")  # legend title
+                st.plotly_chart(fig, use_container_width=True, key=f"{algo} ({mode})")
+
+                # --- Complexity Ladder ---
+                slope = estimate_complexity_position(x, y)
+                complexity_class = classify_complexity(slope)
+                complexity_rows.append({"algorithm": algo, "mode": mode, "slope": slope})
+
+                st.markdown(f"### Complexity Ladder")
+                st.markdown(f"**Estimated Complexity:** {complexity_class}  (slope ≈ {slope:.2f})")
+
+                ladder = ["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n²)", "O(n³)"]
+                ladder_df = pd.DataFrame({
+                    "Complexity": ladder,
+                    "Position": list(range(len(ladder), 0, -1))
+                })
+                algo_pos = ladder.index(complexity_class)
+                ladder_df["Algorithm"] = ["🔹" + algo if i == algo_pos else "" for i in range(len(ladder))]
+
+                fig_ladder = px.scatter(
+                    ladder_df,
+                    x=[""] * len(ladder_df),
+                    y="Position",
+                    text="Complexity",
+                    title="Algorithm Position on Complexity Ladder",
+                    height=400
+                )
+                fig_ladder.update_traces(marker=dict(size=12), name="Complexity Ladder")  # key for ladder
+                fig_ladder.add_scatter(
+                    x=[""],
+                    y=[ladder_df.iloc[algo_pos]["Position"]],
+                    mode="markers+text",
+                    text=[algo],
+                    textposition="middle right",
+                    marker=dict(size=20, symbol="diamond"),
+                    name=f"{algo} Position"
+                )
+                fig_ladder.update_xaxes(showticklabels=False)
+                fig_ladder.update_yaxes(tickvals=ladder_df["Position"], ticktext=ladder_df["Complexity"])
+                fig_ladder.update_layout(legend_title_text="Ladder / Algorithm")
+                st.plotly_chart(fig_ladder, use_container_width=True, key=f"{algo} ({mode}), ladder")
+
+        # --- Global Complexity Landscape ---
+        if complexity_rows:
+            complexity_df = pd.DataFrame(complexity_rows)
+            complexity_df["label"] = complexity_df["algorithm"] + " (" + complexity_df["mode"] + ")"
+
+            bands = [
+                ("O(1)", 0.0, 0.25, "#2ecc71"),
+                ("O(log n)", 0.25, 0.75, "#27ae60"),
+                ("O(n)", 0.75, 1.1, "#f1c40f"),
+                ("O(n log n)", 1.1, 1.7, "#e67e22"),
+                ("O(n²)", 1.7, 2.5, "#e74c3c"),
+                ("O(n³)", 2.5, 3.5, "#8e44ad")
+            ]
+
+            st.divider()
+            st.markdown("## 🌐 Global Complexity Landscape")
+            st.markdown(
+                "Compare all selected algorithms at once. Colored bands show theoretical complexity regions."
             )
-
-            if len(df_clean) < 3:
-                st.warning("Need at least 3 points.")
-                continue
-
-            df_regression = df_clean.tail(min(6, len(df_clean)))
-
-            x = df_regression[size_col].values
-            y = df_regression["total_operations"].values
-
-            x_reg = df_regression[size_col].values
-            y_reg = df_regression["total_operations"].values
-
-
-            base_curves = base_complexity_curves(x)
 
             fig = px.scatter(
-                x=x,
-                y=y,
-                labels={"x": "Input Size", "y": "Operations"},
-                title=f"{algo} vs Theoretical Complexities"
+                complexity_df,
+                x="slope",
+                y=["Algorithms"] * len(complexity_df),
+                text="label",
+                title="Empirical Algorithm Complexity Map"
             )
+            fig.update_traces(marker=dict(size=14), textposition="top center", name="Algorithms")  # key for global map
 
-            fig.data[0].name = "Measured Algorithm"
-
-            scale = max(y)
-
-            for name, curve in base_curves.items():
-
-                scaled = curve * scale
-
-                fig.add_scatter(
-                    x=x,
-                    y=scaled,
-                    mode="lines",
-                    name=name,
-                    line=dict(dash="dash")
+            for name, start, end, color in bands:
+                fig.add_vrect(
+                    x0=start,
+                    x1=end,
+                    fillcolor=color,
+                    opacity=0.12,
+                    layer="below",
+                    line_width=0,
+                    annotation_text=name,
+                    annotation_position="top left",
+                    name=f"{name} band"  # key for band
                 )
 
-            if log_scale:
-                fig.update_xaxes(type="log")
-                fig.update_yaxes(type="log")
-
+            fig.update_yaxes(showticklabels=False)
+            fig.update_layout(xaxis_title="Empirical Complexity Exponent (k in n^k)",
+                              height=450,
+                              legend_title_text="Algorithms / Complexity Bands")
             st.plotly_chart(fig, use_container_width=True)
-
-            # ---------- Complexity Ladder ----------
-
-            slope = estimate_complexity_position(x_reg, y_reg)
-            mode = df["mode"].iloc[0] if "mode" in df.columns else "default"
-
-            complexity_rows.append({
-                "algorithm": algo,
-                "mode": mode,
-                "slope": slope
-            })
-            complexity_class = classify_complexity(slope)
-
-            st.markdown(f"### Complexity Ladder Position")
-            st.markdown(f"Estimated complexity: **{complexity_class}**  (slope ≈ {slope:.2f})")
-
-            ladder = [
-                "O(1)",
-                "O(log n)",
-                "O(n)",
-                "O(n log n)",
-                "O(n²)",
-                "O(n³)"
-            ]
-
-            ladder_df = pd.DataFrame({
-                "Complexity": ladder,
-                "Position": list(range(len(ladder), 0, -1))
-            })
-
-            algo_pos = ladder.index(complexity_class)
-
-            ladder_df["Algorithm"] = [
-                algo if i == algo_pos else ""
-                for i in range(len(ladder))
-            ]
-
-            fig_ladder = px.scatter(
-                ladder_df,
-                x=[" "] * len(ladder_df),
-                y="Position",
-                text="Complexity",
-                title="Complexity Ladder",
-                height=400
-            )
-
-            fig_ladder.update_traces(marker=dict(size=12))
-
-            fig_ladder.add_scatter(
-                x=[" "],
-                y=[ladder_df.iloc[algo_pos]["Position"]],
-                mode="markers+text",
-                text=[algo],
-                textposition="middle right",
-                marker=dict(size=20, symbol="diamond"),
-                name="Algorithm"
-            )
-
-            fig_ladder.update_xaxes(showticklabels=False)
-            fig_ladder.update_yaxes(
-                tickvals=ladder_df["Position"],
-                ticktext=ladder_df["Complexity"]
-            )
-
-            st.plotly_chart(fig_ladder, use_container_width=True)
-        complexity_df = pd.DataFrame(complexity_rows)
-
-        complexity_df["label"] = (
-            complexity_df["algorithm"] + " (" + complexity_df["mode"] + ")"
-        )
-        bands = [
-            ("O(1)", 0.0, 0.25, "#2ecc71"),
-            ("O(log n)", 0.25, 0.75, "#27ae60"),
-            ("O(n)", 0.75, 1.2, "#f1c40f"),
-            ("O(n log n)", 1.2, 1.7, "#e67e22"),
-            ("O(n²)", 1.7, 2.5, "#e74c3c"),
-            ("O(n³)", 2.5, 3.5, "#8e44ad")
-        ]
-        st.divider()
-        st.header("Global Complexity Landscape")
-
-        fig = px.scatter(
-            complexity_df,
-            x="slope",
-            y=["Algorithms"] * len(complexity_df),
-            text="label",
-            title="Empirical Algorithm Complexity Map"
-        )
-
-        fig.update_traces(
-            marker=dict(size=14),
-            textposition="top center"
-        )
-        for name, start, end, color in bands:
-
-            fig.add_vrect(
-                x0=start,
-                x1=end,
-                fillcolor=color,
-                opacity=0.12,
-                layer="below",
-                line_width=0,
-                annotation_text=name,
-                annotation_position="top left"
-            )
-        fig.update_yaxes(showticklabels=False)
-
-        fig.update_layout(
-            xaxis_title="Empirical Complexity Exponent (k in n^k)",
-            height=450
-        )
-        st.plotly_chart(fig, use_container_width=True)

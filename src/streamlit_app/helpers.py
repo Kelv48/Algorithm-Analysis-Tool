@@ -644,21 +644,32 @@ def base_complexity_curves(n_vals):
 
 
 def estimate_complexity_position(n_vals, ops_vals):
-
     n = np.array(n_vals, dtype=float)
     ops = np.array(ops_vals, dtype=float)
 
     mask = (n > 0) & (ops > 0)
-
     n = n[mask]
     ops = ops[mask]
 
+    if len(n) < 2:
+        return 0.0 
+
     log_n = np.log(n)
     log_ops = np.log(ops)
+    slope_simple, _ = np.polyfit(log_n, log_ops, 1)
 
-    slope, _ = np.polyfit(log_n, log_ops, 1)
+    if slope_simple < 1.5:
+        log_ops_over_n = np.log(ops / n)
+        log_log_n = np.log(np.log(n + 1))
+        if len(log_log_n) > 1 and np.all(log_log_n > 0):
+            slope_log = np.polyfit(log_log_n, log_ops_over_n, 1)[0]
+            slope_adjusted = slope_simple + slope_log * 0.3
+        else:
+            slope_adjusted = slope_simple
+    else:
+        slope_adjusted = slope_simple
 
-    return float(slope)
+    return float(slope_adjusted)
 
 
 def normalize_curve(curve, target_max):
@@ -677,9 +688,9 @@ def classify_complexity(slope):
         return "O(1)"
     elif slope < 0.6:
         return "O(log n)"
-    elif slope < 1.2:
+    elif slope < 1.1:
         return "O(n)"
-    elif slope < 1.6:
+    elif slope < 1.5:
         return "O(n log n)"
     elif slope < 2.4:
         return "O(n²)"
