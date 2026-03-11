@@ -144,6 +144,8 @@ class ExecutionSession:
         if args is None:
             args = []
 
+        if src is None:
+            raise ValueError("Source code (src) must be provided to run_function")
         tree = ast.parse(src)
         tree = ASTVisitor(self).visit(tree)
         ast.fix_missing_locations(tree)
