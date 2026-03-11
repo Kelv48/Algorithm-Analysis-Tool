@@ -582,7 +582,7 @@ def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random",
         A = generate_A()
         B = generate_B()
 
-    elif mode == "guided":
+    elif mode == "edge-case":
         case = choice(["all_same", "identity_like", "zeros"])
 
         if case == "all_same":
