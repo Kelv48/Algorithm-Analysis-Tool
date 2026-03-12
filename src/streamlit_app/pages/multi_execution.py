@@ -547,6 +547,137 @@ with tab2:
 
         complexity_rows = []
 
+        # ---- First pass: compute complexity estimates ----
+        for algo in selected_algos:
+            df_algo = results[results["algorithm"] == algo]
+
+            for mode in selected_modes:
+                df = df_algo[df_algo["mode"] == mode] if "mode" in df_algo.columns else df_algo
+
+                if df.empty:
+                    continue
+
+                if "arr_length" in df.columns:
+                    size_col = "arr_length"
+                elif "n" in df.columns:
+                    size_col = "n"
+                elif "nodes" in df.columns:
+                    size_col = "nodes"
+                elif "rows_A" in df.columns:
+                    df = df.copy()
+                    df["matrix_size"] = df["rows_A"] * df["cols_A"]
+                    size_col = "matrix_size"
+                else:
+                    continue
+
+                df_clean = (
+                    df.groupby(size_col)["total_operations"]
+                    .median()
+                    .reset_index()
+                    .sort_values(size_col)
+                )
+
+                if len(df_clean) < 3:
+                    continue
+
+                x = df_clean[size_col].values
+                y = df_clean["total_operations"].values
+
+                slope = estimate_complexity_position(x, y)
+
+                complexity_rows.append({
+                    "algorithm": algo,
+                    "mode": mode,
+                    "slope": slope
+                })
+
+
+        # --- Global Complexity Landscape ---
+        if complexity_rows:
+            complexity_df = pd.DataFrame(complexity_rows)
+            complexity_df["label"] = complexity_df["algorithm"] + " (" + complexity_df["mode"] + ")"
+
+            # --- Stagger y positions for algorithms ---
+            algo_list = complexity_df['algorithm'].unique()
+            algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
+
+            # --- Stagger modes within each algorithm ---
+            stagger_amount = 0.15
+            y_positions = []
+
+            def stagger_group(group):
+                n_modes = len(group)
+                if n_modes == 1:
+                    offsets = [0.0]
+                else:
+                    offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
+                return algo_to_y[group.name] + np.array(offsets)
+            complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
+
+            # --- Assign colors ---
+            palette = px.colors.qualitative.Set2
+            algo_colors = {algo: palette[i % len(palette)] for i, algo in enumerate(algo_list)}
+
+            # --- Complexity bands ---
+            bands = [
+                ("O(1)", 0.0, 0.25, "#2ecc71"),
+                ("O(log n)", 0.25, 0.75, "#27ae60"),
+                ("O(n)", 0.75, 1.1, "#f1c40f"),
+                ("O(n log n)", 1.1, 1.7, "#e67e22"),
+                ("O(n²)", 1.7, 2.5, "#e74c3c"),
+                ("O(n³)", 2.5, 3.5, "#8e44ad")
+            ]
+
+            st.divider()
+            st.markdown("## Global Complexity Map")
+            st.markdown(
+                "Compare all selected algorithms at once. Colored bands show theoretical complexity regions. Modes are slightly staggered for clarity."
+            )
+
+            # --- Scatter plot with staggered y ---
+            complexity_df['slope_clamped'] = complexity_df['slope'].clip(lower=0)
+            fig = px.scatter(
+                complexity_df,
+                x="slope_clamped",
+                y="y_pos",
+                color="algorithm",
+                text="label",
+                title="Empirical Algorithm Complexity Map",
+                color_discrete_map=algo_colors,
+                hover_data=["algorithm", "mode", "slope"]
+            )
+
+            fig.update_traces(marker=dict(size=14), textposition="top center")
+            fig.update_xaxes(range=[0, 3.5])
+            fig.update_yaxes(
+                showticklabels=True,
+                tickvals=list(algo_to_y.values()),
+                ticktext=list(algo_to_y.keys())
+            )
+
+            # Add complexity bands as vertical rectangles
+            for name, start, end, color in bands:
+                fig.add_vrect(
+                    x0=start,
+                    x1=end,
+                    fillcolor=color,
+                    opacity=0.12,
+                    layer="below",
+                    line_width=0,
+                    annotation_text=name,
+                    annotation_position="top left"
+                )
+
+            fig.update_layout(
+                xaxis_title="Empirical Complexity Exponent (k in n^k)",
+                yaxis_title="Algorithm",
+                height=550,
+                legend_title_text="Algorithm"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+
+        # --- Detailed Plots per Algorithm/Mode ---
         for algo in selected_algos:
 
             df_algo = results[results["algorithm"] == algo]
@@ -648,86 +779,4 @@ with tab2:
                 fig_ladder.update_layout(legend_title_text="Ladder / Algorithm")
                 st.plotly_chart(fig_ladder, use_container_width=True, key=f"{algo} ({mode}), ladder")
 
-        # --- Global Complexity Landscape ---
-        if complexity_rows:
-            complexity_df = pd.DataFrame(complexity_rows)
-            complexity_df["label"] = complexity_df["algorithm"] + " (" + complexity_df["mode"] + ")"
-
-            # --- Stagger y positions for algorithms ---
-            algo_list = complexity_df['algorithm'].unique()
-            algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
-
-            # --- Stagger modes within each algorithm ---
-            stagger_amount = 0.15
-            y_positions = []
-
-            def stagger_group(group):
-                n_modes = len(group)
-                if n_modes == 1:
-                    offsets = [0.0]
-                else:
-                    offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
-                return algo_to_y[group.name] + np.array(offsets)
-            complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
-
-            # --- Assign colors ---
-            palette = px.colors.qualitative.Set2
-            algo_colors = {algo: palette[i % len(palette)] for i, algo in enumerate(algo_list)}
-
-            # --- Complexity bands ---
-            bands = [
-                ("O(1)", 0.0, 0.25, "#2ecc71"),
-                ("O(log n)", 0.25, 0.75, "#27ae60"),
-                ("O(n)", 0.75, 1.1, "#f1c40f"),
-                ("O(n log n)", 1.1, 1.7, "#e67e22"),
-                ("O(n²)", 1.7, 2.5, "#e74c3c"),
-                ("O(n³)", 2.5, 3.5, "#8e44ad")
-            ]
-
-            st.divider()
-            st.markdown("## Global Complexity Map")
-            st.markdown(
-                "Compare all selected algorithms at once. Colored bands show theoretical complexity regions. Modes are slightly staggered for clarity."
-            )
-
-            # --- Scatter plot with staggered y ---
-            complexity_df['slope_clamped'] = complexity_df['slope'].clip(lower=0)
-            fig = px.scatter(
-                complexity_df,
-                x="slope_clamped",
-                y="y_pos",
-                color="algorithm",
-                text="label",
-                title="Empirical Algorithm Complexity Map",
-                color_discrete_map=algo_colors,
-                hover_data=["algorithm", "mode", "slope"]
-            )
-
-            fig.update_traces(marker=dict(size=14), textposition="top center")
-            fig.update_xaxes(range=[0, 3.5])
-            fig.update_yaxes(
-                showticklabels=True,
-                tickvals=list(algo_to_y.values()),
-                ticktext=list(algo_to_y.keys())
-            )
-
-            # Add complexity bands as vertical rectangles
-            for name, start, end, color in bands:
-                fig.add_vrect(
-                    x0=start,
-                    x1=end,
-                    fillcolor=color,
-                    opacity=0.12,
-                    layer="below",
-                    line_width=0,
-                    annotation_text=name,
-                    annotation_position="top left"
-                )
-
-            fig.update_layout(
-                xaxis_title="Empirical Complexity Exponent (k in n^k)",
-                yaxis_title="Algorithm",
-                height=550,
-                legend_title_text="Algorithm"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        
