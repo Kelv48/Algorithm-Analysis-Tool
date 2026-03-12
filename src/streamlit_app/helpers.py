@@ -685,18 +685,17 @@ def normalize_curve(curve, target_max):
 
     return curve * (target_max / curve.max())
 
-
 def classify_complexity(slope):
 
-    if slope < 0.2:
+    if slope < 0.25:
         return "O(1)"
-    elif slope < 0.6:
+    elif slope < 0.75:
         return "O(log n)"
     elif slope < 1.1:
         return "O(n)"
-    elif slope < 1.5:
+    elif slope < 1.7:
         return "O(n log n)"
-    elif slope < 2.4:
+    elif slope < 2.5:
         return "O(n²)"
     else:
         return "O(n³)"
