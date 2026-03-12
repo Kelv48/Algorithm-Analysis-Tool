@@ -723,8 +723,9 @@ with tab2:
                 )
                 fig.data[0].name = f"{algo} ({mode})"
 
-                scale = max(y)
                 for name, curve in base_curves.items():
+                    scale = y[0] / curve[0]
+
                     fig.add_scatter(
                         x=x,
                         y=curve * scale,
