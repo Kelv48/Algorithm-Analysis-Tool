@@ -402,7 +402,7 @@ with tab1:
     if st.session_state.generated_params != current_params:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
-    if code_input:
+    if  mode == "user" and code_input:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
 
