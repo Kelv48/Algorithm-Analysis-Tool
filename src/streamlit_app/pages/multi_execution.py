@@ -557,7 +557,7 @@ with tab2:
                 if df.empty:
                     continue
 
-                st.markdown(f"## 🔹 {algo} ({mode})")
+                st.markdown(f"## • {algo} ({mode})")
 
                 # --- Determine input size ---
                 if "arr_length" in df.columns:
@@ -685,7 +685,7 @@ with tab2:
             ]
 
             st.divider()
-            st.markdown("## 🌐 Global Complexity Landscape")
+            st.markdown("## Global Complexity Map")
             st.markdown(
                 "Compare all selected algorithms at once. Colored bands show theoretical complexity regions. Modes are slightly staggered for clarity."
             )
