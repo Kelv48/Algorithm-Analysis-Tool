@@ -121,7 +121,7 @@ def display_charts(counters_dict, arr_length=None, title_suffix=""):
 # -----------------------------
 # Main Tabs
 # -----------------------------
-tab1, tab2, tab3 = st.tabs(["Single Run", "Compare Runs", "History / Visualization"])
+tab1, tab2, tab3 = st.tabs(["Single Run", "Compare Cached Runs", "Recent Run History"])
 
 
 # ===========================
@@ -158,7 +158,7 @@ with tab1:
 
             mode_input = st.radio(
                 "Input Generation Mode",
-                ["Random", "Edge-case", "Evolutionary", "User-defined"],
+                ["Random", "Edge-case", "Evolutionary", "User-defined (This must be used with generate input)"],
                 horizontal=True,
                 help="Choose an mode to be used to generate the array"
             )
@@ -167,7 +167,7 @@ with tab1:
                 "Random": "random",
                 "Edge-case": "edge-case",
                 "Evolutionary": "evolution",
-                "User-defined": "user"
+                "User-defined (This must be used with generate input)": "user"
             }
 
             mode = mode_map[mode_input]
@@ -258,7 +258,7 @@ with tab1:
   
             mode_input = st.radio(
                 "Input Generation Mode", 
-                ["Random", "Edge-case", "Evolutionary", "User-defined"],
+                ["Random", "Edge-case", "Evolutionary", "User-defined (This must be used with generate input)"],
                 horizontal=True,
                 help="Choose a mode to be used to generate the matrix input"
             )
@@ -267,7 +267,7 @@ with tab1:
                 "Random": "random",
                 "Edge-case": "edge-case",
                 "Evolutionary": "evolution",
-                "User-defined": "user"
+                "User-defined (This must be used with generate input)": "user"
             }
 
             mode = mode_map[mode_input]
@@ -382,8 +382,10 @@ with tab1:
     user_func = None
     if group in ARRAY_GROUPS and mode == "user":
         code_input = st.text_area(
-            "Define your input function as `def gen(n_range, arr_length): ...`",
-            key="user_func_code"
+            "Define your input function as `def gen(n_range, arr_length): ...` \n and `return [arr]` or `[arr, target]` or `[activities]` "
+            "",
+            key="user_func_code",
+            help=""
         )
         if code_input:
             local_vars = {}
@@ -398,6 +400,9 @@ with tab1:
                 user_func = None
     # Reset generated input if parameters changed
     if st.session_state.generated_params != current_params:
+        st.session_state.input_generated = False
+        st.session_state.generated_input = None
+    if  mode == "user" and code_input:
         st.session_state.input_generated = False
         st.session_state.generated_input = None
 
@@ -448,9 +453,15 @@ with tab1:
                 st.session_state.generated_params = current_params
                 st.session_state.input_generated = True
 
-        with col2:         
+        with col2:
+            if mode == "user" and not st.session_state.input_generated:
+                st.info("Generate input data first when using User-defined mode.")
+
+            run_disabled = st.session_state.is_running or (
+                mode == "user" and not st.session_state.input_generated
+            )       
             # --- Run AST Analysis ---
-            if st.button("Run AST Analysis", disabled=st.session_state.is_running):
+            if st.button("Run AST Analysis", disabled=run_disabled):
                 drop_cache(cache_key)
                 st.session_state.is_running = True
 

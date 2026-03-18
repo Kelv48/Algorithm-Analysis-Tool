@@ -27,7 +27,7 @@ st.set_page_config(
 
 
 # Algorithm Groups
-from algorithm_analysis_tool.config import ALGO_GROUPS, ARRAY_GROUPS, GRAPH_GROUPS, MATRIX_GROUPS
+from algorithm_analysis_tool.config import ALGO_GROUPS, ARRAY_GROUPS, GRAPH_GROUPS, MATRIX_GROUPS, SORTING_ALGOS, SEARCH_ALGOS, ACTIVITY_ALGOS
 
 
 # Session
@@ -59,13 +59,30 @@ with tab1:
 
         # Array-Based Config
         if group in ARRAY_GROUPS:
-            st.subheader("Array Configuration")
-            col1, col2 = st.columns(2)
-            with col1:
-                n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
-                arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
-            with col2:
-                modes = st.multiselect("Generation Modes", ["random", "edge-case", "evolution"], default=["random"])
+            if group == "Sorting":
+                st.subheader("Sorting Configuration")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                with col2:
+                    modes = st.multiselect("Generation Modes", ["random", "sorted", "reverse", "all_same", "few_unique", "evolution"], default=["random"], key="sorting")
+            elif group == "Searching":
+                st.subheader("Searching Configuration")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                with col2:
+                    modes = st.multiselect("Generation Modes", ["random", "evolution"], default=["random"], key="searching")
+            elif group == "Scheduling":
+                st.subheader("Activity Configuration")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                with col2:
+                    modes = st.multiselect("Generation Modes", ["random", "all_overlap", "non_overlap", "sequential", "evolution"], default=["random"], key="activity")
         elif group in MATRIX_GROUPS:
             st.subheader("Matrix Configuration")
             col1, col2, col3, col4 = st.columns(4)
@@ -77,7 +94,7 @@ with tab1:
                 cols_B_values = st.multiselect("Columns of Matrix B", [2, 3, 4, 5], default=[2])
             with col4:
                 n_values = st.multiselect("Max Integer Value", [10, 50, 100, 200], default=[100])
-            modes = st.multiselect("Generation Modes", ["random"], default=["random"])
+            modes = st.multiselect("Generation Modes", ["random", "all_same", "identity_like", "zeros", "evolution"], default=["random"])
         # Graph Config
         else:
             st.subheader("Graph Configuration")
@@ -543,110 +560,52 @@ with tab2:
         all_modes = results["mode"].unique() if "mode" in results.columns else ["default"]
         selected_modes = st.multiselect("Select Modes to Display", all_modes, default=list(all_modes))
 
-        log_scale = st.checkbox("Use Log-Log Scale", value=True, help="Display axes in log scale for better visualization of large ranges.")
-
         complexity_rows = []
 
+        # ---- First pass: compute complexity estimates ----
         for algo in selected_algos:
-
             df_algo = results[results["algorithm"] == algo]
-            for mode in selected_modes:
 
+            for mode in selected_modes:
                 df = df_algo[df_algo["mode"] == mode] if "mode" in df_algo.columns else df_algo
 
                 if df.empty:
                     continue
 
-                st.markdown(f"## 🔹 {algo} ({mode})")
-
-                # --- Determine input size ---
                 if "arr_length" in df.columns:
                     size_col = "arr_length"
-                elif "n" in df.columns:
-                    size_col = "n"
-                elif "nodes" in df.columns:
-                    size_col = "nodes"
                 elif "rows_A" in df.columns:
+                    df = df.copy()
                     df["matrix_size"] = df["rows_A"] * df["cols_A"]
                     size_col = "matrix_size"
+                elif "nodes" in df.columns:
+                    size_col = "nodes"
+                elif "n" in df.columns:
+                    size_col = "n"
                 else:
-                    st.warning("No valid input size dimension found.")
                     continue
 
-                # Aggregate duplicates
-                df_clean = df.groupby(size_col)["total_operations"].median().reset_index().sort_values(size_col)
+                df_clean = (
+                    df.groupby(size_col)["total_operations"]
+                    .median()
+                    .reset_index()
+                    .sort_values(size_col)
+                )
+
                 if len(df_clean) < 3:
-                    st.warning("Need at least 3 data points to estimate complexity.")
                     continue
 
                 x = df_clean[size_col].values
                 y = df_clean["total_operations"].values
 
-                # --- Complexity vs Theoretical Curves ---
-                base_curves = base_complexity_curves(x)
-                fig = px.scatter(
-                    x=x,
-                    y=y,
-                    labels={"x": "Input Size", "y": "Operations"},
-                    title=f"{algo} vs Theoretical Complexity Curves"
-                )
-                fig.data[0].name = f"{algo} ({mode})"
-
-                scale = max(y)
-                for name, curve in base_curves.items():
-                    fig.add_scatter(
-                        x=x,
-                        y=curve * scale,
-                        mode="lines",
-                        name=f"{name} (theoretical)",
-                        line=dict(dash="dash")
-                    )
-
-                if log_scale:
-                    fig.update_xaxes(type="log")
-                    fig.update_yaxes(type="log")
-
-                fig.update_layout(legend_title_text="Algorithm / Curve")  # legend title
-                st.plotly_chart(fig, use_container_width=True, key=f"{algo} ({mode})")
-
-                # --- Complexity Ladder ---
                 slope = estimate_complexity_position(x, y)
-                complexity_class = classify_complexity(slope)
-                complexity_rows.append({"algorithm": algo, "mode": mode, "slope": slope})
 
-                st.markdown(f"### Complexity Ladder")
-                st.markdown(f"**Estimated Complexity:** {complexity_class}  (slope ≈ {slope:.2f})")
-
-                ladder = ["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n²)", "O(n³)"]
-                ladder_df = pd.DataFrame({
-                    "Complexity": ladder,
-                    "Position": list(range(len(ladder), 0, -1))
+                complexity_rows.append({
+                    "algorithm": algo,
+                    "mode": mode,
+                    "slope": slope
                 })
-                algo_pos = ladder.index(complexity_class)
-                ladder_df["Algorithm"] = ["🔹" + algo if i == algo_pos else "" for i in range(len(ladder))]
 
-                fig_ladder = px.scatter(
-                    ladder_df,
-                    x=[""] * len(ladder_df),
-                    y="Position",
-                    text="Complexity",
-                    title="Algorithm Position on Complexity Ladder",
-                    height=400
-                )
-                fig_ladder.update_traces(marker=dict(size=12), name="Complexity Ladder")  # key for ladder
-                fig_ladder.add_scatter(
-                    x=[""],
-                    y=[ladder_df.iloc[algo_pos]["Position"]],
-                    mode="markers+text",
-                    text=[algo],
-                    textposition="middle right",
-                    marker=dict(size=20, symbol="diamond"),
-                    name=f"{algo} Position"
-                )
-                fig_ladder.update_xaxes(showticklabels=False)
-                fig_ladder.update_yaxes(tickvals=ladder_df["Position"], ticktext=ladder_df["Complexity"])
-                fig_ladder.update_layout(legend_title_text="Ladder / Algorithm")
-                st.plotly_chart(fig_ladder, use_container_width=True, key=f"{algo} ({mode}), ladder")
 
         # --- Global Complexity Landscape ---
         if complexity_rows:
@@ -658,7 +617,7 @@ with tab2:
             algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
 
             # --- Stagger modes within each algorithm ---
-            stagger_amount = 0.15
+            stagger_amount = 0.35
             y_positions = []
 
             def stagger_group(group):
@@ -668,7 +627,27 @@ with tab2:
                 else:
                     offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
                 return algo_to_y[group.name] + np.array(offsets)
-            complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
+            
+            y_positions = []
+
+            for algo in complexity_df['algorithm']:
+                group = complexity_df[complexity_df['algorithm'] == algo]
+                n_modes = len(group)
+
+                if n_modes == 1:
+                    offset = [0.0]
+                else:
+                    offset = np.linspace(-stagger_amount, stagger_amount, n_modes)
+
+                base_y = algo_to_y[algo]
+
+                # assign one offset per row in correct order
+                for i, idx in enumerate(group.index):
+                    y_positions.append((idx, base_y + offset[i]))
+
+            # assign back safely
+            y_pos_series = pd.Series(dict(y_positions))
+            complexity_df['y_pos'] = complexity_df.index.map(y_pos_series)
 
             # --- Assign colors ---
             palette = px.colors.qualitative.Set2
@@ -685,7 +664,7 @@ with tab2:
             ]
 
             st.divider()
-            st.markdown("## 🌐 Global Complexity Landscape")
+            st.markdown("## Global Complexity Map", help="Hover over the points for more details")
             st.markdown(
                 "Compare all selected algorithms at once. Colored bands show theoretical complexity regions. Modes are slightly staggered for clarity."
             )
@@ -727,7 +706,119 @@ with tab2:
             fig.update_layout(
                 xaxis_title="Empirical Complexity Exponent (k in n^k)",
                 yaxis_title="Algorithm",
-                height=550,
+                height=140 + 140 * len(algo_list),
                 legend_title_text="Algorithm"
             )
             st.plotly_chart(fig, use_container_width=True)
+
+
+        # --- Detailed Plots per Algorithm/Mode ---
+        for algo in selected_algos:
+
+            df_algo = results[results["algorithm"] == algo]
+            for mode in selected_modes:
+
+                df = df_algo[df_algo["mode"] == mode] if "mode" in df_algo.columns else df_algo
+
+                if df.empty:
+                    continue
+
+                st.markdown(f"## • {algo} ({mode})")
+
+                # --- Determine input size ---
+                if "arr_length" in df.columns:
+                    size_col = "arr_length"
+                elif "n" in df.columns:
+                    size_col = "n"
+                elif "nodes" in df.columns:
+                    size_col = "nodes"
+                elif "rows_A" in df.columns:
+                    df["matrix_size"] = df["rows_A"] * df["cols_A"]
+                    size_col = "matrix_size"
+                else:
+                    st.warning("No valid input size dimension found.")
+                    continue
+
+                # Aggregate duplicates
+                df_clean = df.groupby(size_col)["total_operations"].median().reset_index().sort_values(size_col)
+                if len(df_clean) < 3:
+                    st.warning("Need at least 3 data points to estimate complexity.")
+                    continue
+
+                # --- Complexity vs Theoretical Curves ---
+                x_measured = np.array(sorted(df_clean[size_col].values))
+                x_extended = np.linspace(x_measured.min(), x_measured.max() * 3, 200)
+                
+                y = df_clean["total_operations"].values
+                curves = base_complexity_curves(x_extended)
+
+                linear_view = st.checkbox(f"Show Linear Scale for {algo} ({mode})", value=False, key=f"linear_{algo}_{mode}", help="Change to linear scaling to see the theoretical curve")
+
+                fig = px.scatter(
+                    x=x_measured,
+                    y=y,
+                    labels={"x": "Input Size", "y": "Operations"},
+                    title=f"{algo} vs Theoretical Complexity Curves"
+                )
+                fig.data[0].name = f"{algo} ({mode})"
+
+                for name, curve in curves.items():
+                    scale = y[0] / curve[0] if curve[0] != 0 else 1
+
+                    fig.add_scatter(
+                        x=x_extended,
+                        y=curve * scale,
+                        mode="lines",
+                        name=f"{name} (theoretical)",
+                        line=dict(dash="dash"),
+                        opacity=0.7
+                    )
+
+                axis_type = "linear" if linear_view else "log"
+                fig.update_xaxes(type=axis_type)
+                fig.update_yaxes(type=axis_type)
+
+                fig.update_layout(legend_title_text="Algorithm / Curve")
+                st.caption("Generates the theoretical complexity from the generated results")
+                st.plotly_chart(fig, use_container_width=True, key=f"{algo} ({mode})")
+
+                # --- Complexity Ladder ---
+                slope = estimate_complexity_position(x, y)
+                complexity_class = classify_complexity(slope)
+                complexity_rows.append({"algorithm": algo, "mode": mode, "slope": slope})
+
+                st.markdown(f"### Complexity Ladder")
+                st.markdown(f"**Estimated Complexity:** {complexity_class}  (slope ≈ {slope:.2f})")
+
+                ladder = ["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n²)", "O(n³)"]
+                ladder_df = pd.DataFrame({
+                    "Complexity": ladder,
+                    "Position": list(range(len(ladder), 0, -1))
+                })
+                algo_pos = ladder.index(complexity_class)
+                ladder_df["Algorithm"] = ["🔹" + algo if i == algo_pos else "" for i in range(len(ladder))]
+
+                fig_ladder = px.scatter(
+                    ladder_df,
+                    x=[""] * len(ladder_df),
+                    y="Position",
+                    text="Complexity",
+                    title="Algorithm Position on Complexity Ladder",
+                    height=400
+                )
+                fig_ladder.update_traces(marker=dict(size=12), name="Complexity Ladder")  # key for ladder
+                fig_ladder.add_scatter(
+                    x=[""],
+                    y=[ladder_df.iloc[algo_pos]["Position"]],
+                    mode="markers+text",
+                    text=[algo],
+                    textposition="middle right",
+                    marker=dict(size=20, symbol="diamond"),
+                    name=f"{algo} Position"
+                )
+                fig_ladder.update_xaxes(showticklabels=False)
+                fig_ladder.update_yaxes(tickvals=ladder_df["Position"], ticktext=ladder_df["Complexity"])
+                fig_ladder.update_layout(legend_title_text="Ladder / Algorithm")
+                st.plotly_chart(fig_ladder, use_container_width=True, key=f"{algo} ({mode}), ladder")
+
+        

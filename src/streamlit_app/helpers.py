@@ -430,6 +430,21 @@ def sorting_generation(func_name, n_range, arr_length, mode="random", base_array
         elif case == "few_unique":
             unique_vals = [randint(1, n_range) for _ in range(max(1, arr_length // 5))]
             arr = [choice(unique_vals) for _ in range(arr_length)]
+
+    elif mode == "sorted":
+        arr = list(range(1, arr_length + 1))
+
+    elif mode == "reverse":
+        arr = list(range(arr_length, 0, -1))
+
+    elif mode == "all_same":
+        val = randint(1, n_range)
+        arr = [val] * arr_length
+
+    elif mode == "few_unique":
+        unique_vals = [randint(1, n_range) for _ in range(max(1, arr_length // 5))]
+        arr = [choice(unique_vals) for _ in range(arr_length)]
+
     elif mode == "evolution":
         if base_array is None:
             base_array = [randint(1, n_range) for _ in range(arr_length)]
@@ -545,6 +560,18 @@ def activity_generation(func_name, n_range, arr_length, mode="random", base_arra
             activities = [(i * 2, i * 2 + 1) for i in range(arr_length)]
         elif case == "sequential":
             activities = [(i, i + 1) for i in range(arr_length)]
+
+    elif mode == "all_overlap":
+        start = randint(1, n_range // 2)
+        end = start + randint(1, n_range // 2)
+        activities = [(start, end) for _ in range(arr_length)]
+
+    elif mode == "non_overlap":
+        activities = [(i * 2, i * 2 + 1) for i in range(arr_length)]
+
+    elif mode == "sequential":
+        activities = [(i, i + 1) for i in range(arr_length)]
+
     elif mode == "evolution":
         if base_array is None:
             activities = [(randint(1, n_range), randint(1, n_range)) for _ in range(arr_length)]
@@ -577,12 +604,12 @@ def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random",
                 for _ in range(cols_A)]
 
     # ------------------ MODES ------------------
-
     if mode == "random":
         A = generate_A()
         B = generate_B()
 
     elif mode == "edge-case":
+        # For use by single execution
         case = choice(["all_same", "identity_like", "zeros"])
 
         if case == "all_same":
@@ -598,6 +625,22 @@ def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random",
         else: 
             A = [[0 for _ in range(cols_A)] for _ in range(rows_A)]
             B = generate_B()
+    
+    # For use by multi_execution
+    elif mode == "all_same":
+        val = randint(1, n_range)
+        A = [[val for _ in range(cols_A)] for _ in range(rows_A)]
+        B = [[val for _ in range(cols_B)] for _ in range(cols_A)]
+
+    elif mode == "identity_like" and rows_A == cols_A:
+            A = [[1 if i == j else 0 for j in range(cols_A)]
+                 for i in range(rows_A)]
+            B = generate_B()
+    
+    elif mode == "zeros":
+        A = [[0 for _ in range(cols_A)] for _ in range(rows_A)]
+        B = generate_B()
+
 
     elif mode == "evolution":
         if base_array is None:
@@ -626,22 +669,17 @@ def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random",
 # Multi Run Helpers
 
 def base_complexity_curves(n_vals):
-
     n = np.array(sorted(n_vals))
-
+    
     curves = {
         "O(1)": np.ones_like(n),
         "O(log n)": np.log2(n + 1),
         "O(n)": n,
         "O(n log n)": n * np.log2(n + 1),
         "O(n²)": n ** 2,
-        "O(n³)": n ** 3,
+        "O(n³)": n ** 3
     }
-    reference = curves["O(n²)"].max()
-
-    for key in curves:
-        curves[key] = curves[key] / reference
-
+    
     return curves
 
 
@@ -685,18 +723,17 @@ def normalize_curve(curve, target_max):
 
     return curve * (target_max / curve.max())
 
-
 def classify_complexity(slope):
 
-    if slope < 0.2:
+    if slope < 0.25:
         return "O(1)"
-    elif slope < 0.6:
+    elif slope < 0.75:
         return "O(log n)"
     elif slope < 1.1:
         return "O(n)"
-    elif slope < 1.5:
+    elif slope < 1.7:
         return "O(n log n)"
-    elif slope < 2.4:
+    elif slope < 2.5:
         return "O(n²)"
     else:
         return "O(n³)"
