@@ -32,7 +32,7 @@ The tool currently supports:
 
 | Category   | Algorithms                         |
 |------------|-----------------------------------|
-| Sorting    | bubble_sort, merge_sort, insertion_sort, quicksort |
+| Sorting    | bubble_sort(smart/dumb), merge_sort, insertion_sort, quicksort |
 | Searching  | linear_search, binary_search       |
 | Graph      | DFS, BFS                          |
 | Scheduling | activity_selection                 |
