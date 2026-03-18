@@ -778,7 +778,8 @@ with tab2:
                 fig.update_xaxes(type=axis_type)
                 fig.update_yaxes(type=axis_type)
 
-                fig.update_layout(legend_title_text="Algorithm / Curve")  # legend title
+                fig.update_layout(legend_title_text="Algorithm / Curve")
+                st.caption("Generates the theoretical complexity from the generated results")
                 st.plotly_chart(fig, use_container_width=True, key=f"{algo} ({mode})")
 
                 # --- Complexity Ladder ---
