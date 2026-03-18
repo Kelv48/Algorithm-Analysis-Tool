@@ -27,7 +27,7 @@ st.set_page_config(
 
 
 # Algorithm Groups
-from algorithm_analysis_tool.config import ALGO_GROUPS, ARRAY_GROUPS, GRAPH_GROUPS, MATRIX_GROUPS
+from algorithm_analysis_tool.config import ALGO_GROUPS, ARRAY_GROUPS, GRAPH_GROUPS, MATRIX_GROUPS, SORTING_ALGOS, SEARCH_ALGOS, ACTIVITY_ALGOS
 
 
 # Session
@@ -59,13 +59,30 @@ with tab1:
 
         # Array-Based Config
         if group in ARRAY_GROUPS:
-            st.subheader("Array Configuration")
-            col1, col2 = st.columns(2)
-            with col1:
-                n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
-                arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
-            with col2:
-                modes = st.multiselect("Generation Modes", ["random", "edge-case", "evolution"], default=["random"])
+            if group == "Sorting":
+                st.subheader("Sorting Configuration")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                with col2:
+                    modes = st.multiselect("Generation Modes", ["random", "sorted", "reverse", "all_same", "few_unique", "evolution"], default=["random"], key="sorting")
+            elif group == "Searching":
+                st.subheader("Searching Configuration")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                with col2:
+                    modes = st.multiselect("Generation Modes", ["random", "evolution"], default=["random"], key="searching")
+            elif group == "Scheduling":
+                st.subheader("Activity Configuration")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                with col2:
+                    modes = st.multiselect("Generation Modes", ["random", "all_overlap", "non_overlap", "sequential", "evolution"], default=["random"], key="activity")
         elif group in MATRIX_GROUPS:
             st.subheader("Matrix Configuration")
             col1, col2, col3, col4 = st.columns(4)
@@ -77,7 +94,7 @@ with tab1:
                 cols_B_values = st.multiselect("Columns of Matrix B", [2, 3, 4, 5], default=[2])
             with col4:
                 n_values = st.multiselect("Max Integer Value", [10, 50, 100, 200], default=[100])
-            modes = st.multiselect("Generation Modes", ["random"], default=["random"])
+            modes = st.multiselect("Generation Modes", ["random", "all_same", "identity_like", "zeros", "evolution"], default=["random"])
         # Graph Config
         else:
             st.subheader("Graph Configuration")
@@ -559,14 +576,14 @@ with tab2:
 
                 if "arr_length" in df.columns:
                     size_col = "arr_length"
-                elif "n" in df.columns:
-                    size_col = "n"
-                elif "nodes" in df.columns:
-                    size_col = "nodes"
                 elif "rows_A" in df.columns:
                     df = df.copy()
                     df["matrix_size"] = df["rows_A"] * df["cols_A"]
                     size_col = "matrix_size"
+                elif "nodes" in df.columns:
+                    size_col = "nodes"
+                elif "n" in df.columns:
+                    size_col = "n"
                 else:
                     continue
 
@@ -602,7 +619,7 @@ with tab2:
             algo_to_y = {algo: i for i, algo in enumerate(reversed(algo_list), start=1)}
 
             # --- Stagger modes within each algorithm ---
-            stagger_amount = 0.15
+            stagger_amount = 0.35
             y_positions = []
 
             def stagger_group(group):
@@ -612,7 +629,27 @@ with tab2:
                 else:
                     offsets = np.linspace(-stagger_amount, stagger_amount, n_modes)
                 return algo_to_y[group.name] + np.array(offsets)
-            complexity_df['y_pos'] = complexity_df.groupby('algorithm').apply(stagger_group).explode().values
+            
+            y_positions = []
+
+            for algo in complexity_df['algorithm']:
+                group = complexity_df[complexity_df['algorithm'] == algo]
+                n_modes = len(group)
+
+                if n_modes == 1:
+                    offset = [0.0]
+                else:
+                    offset = np.linspace(-stagger_amount, stagger_amount, n_modes)
+
+                base_y = algo_to_y[algo]
+
+                # assign one offset per row in correct order
+                for i, idx in enumerate(group.index):
+                    y_positions.append((idx, base_y + offset[i]))
+
+            # assign back safely
+            y_pos_series = pd.Series(dict(y_positions))
+            complexity_df['y_pos'] = complexity_df.index.map(y_pos_series)
 
             # --- Assign colors ---
             palette = px.colors.qualitative.Set2
@@ -629,7 +666,7 @@ with tab2:
             ]
 
             st.divider()
-            st.markdown("## Global Complexity Map")
+            st.markdown("## Global Complexity Map", help="Hover over the points for more details")
             st.markdown(
                 "Compare all selected algorithms at once. Colored bands show theoretical complexity regions. Modes are slightly staggered for clarity."
             )
@@ -671,7 +708,7 @@ with tab2:
             fig.update_layout(
                 xaxis_title="Empirical Complexity Exponent (k in n^k)",
                 yaxis_title="Algorithm",
-                height=550,
+                height=120 + 120 * len(algo_list),
                 legend_title_text="Algorithm"
             )
             st.plotly_chart(fig, use_container_width=True)
