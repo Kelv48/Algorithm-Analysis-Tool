@@ -669,22 +669,17 @@ def matrix_generation(func_name, n_range, rows_A, cols_A, cols_B, mode="random",
 # Multi Run Helpers
 
 def base_complexity_curves(n_vals):
-
     n = np.array(sorted(n_vals))
-
+    
     curves = {
         "O(1)": np.ones_like(n),
         "O(log n)": np.log2(n + 1),
         "O(n)": n,
         "O(n log n)": n * np.log2(n + 1),
         "O(n²)": n ** 2,
-        "O(n³)": n ** 3,
+        "O(n³)": n ** 3
     }
-    reference = curves["O(n²)"].max()
-
-    for key in curves:
-        curves[key] = curves[key] / reference
-
+    
     return curves
 
 

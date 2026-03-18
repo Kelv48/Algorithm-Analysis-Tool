@@ -560,8 +560,6 @@ with tab2:
         all_modes = results["mode"].unique() if "mode" in results.columns else ["default"]
         selected_modes = st.multiselect("Select Modes to Display", all_modes, default=list(all_modes))
 
-        log_scale = st.checkbox("Use Log-Log Scale", value=True, help="Display axes in log scale for better visualization of large ranges.")
-
         complexity_rows = []
 
         # ---- First pass: compute complexity estimates ----
@@ -708,7 +706,7 @@ with tab2:
             fig.update_layout(
                 xaxis_title="Empirical Complexity Exponent (k in n^k)",
                 yaxis_title="Algorithm",
-                height=120 + 120 * len(algo_list),
+                height=140 + 140 * len(algo_list),
                 legend_title_text="Algorithm"
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -747,33 +745,38 @@ with tab2:
                     st.warning("Need at least 3 data points to estimate complexity.")
                     continue
 
-                x = df_clean[size_col].values
-                y = df_clean["total_operations"].values
-
                 # --- Complexity vs Theoretical Curves ---
-                base_curves = base_complexity_curves(x)
+                x_measured = np.array(sorted(df_clean[size_col].values))
+                x_extended = np.linspace(x_measured.min(), x_measured.max() * 3, 200)
+                
+                y = df_clean["total_operations"].values
+                curves = base_complexity_curves(x_extended)
+
+                linear_view = st.checkbox(f"Show Linear Scale for {algo} ({mode})", value=False, key=f"linear_{algo}_{mode}", help="Change to linear scaling to see the theoretical curve")
+
                 fig = px.scatter(
-                    x=x,
+                    x=x_measured,
                     y=y,
                     labels={"x": "Input Size", "y": "Operations"},
                     title=f"{algo} vs Theoretical Complexity Curves"
                 )
                 fig.data[0].name = f"{algo} ({mode})"
 
-                for name, curve in base_curves.items():
-                    scale = y[0] / curve[0]
+                for name, curve in curves.items():
+                    scale = y[0] / curve[0] if curve[0] != 0 else 1
 
                     fig.add_scatter(
-                        x=x,
+                        x=x_extended,
                         y=curve * scale,
                         mode="lines",
                         name=f"{name} (theoretical)",
-                        line=dict(dash="dash")
+                        line=dict(dash="dash"),
+                        opacity=0.7
                     )
 
-                if log_scale:
-                    fig.update_xaxes(type="log")
-                    fig.update_yaxes(type="log")
+                axis_type = "linear" if linear_view else "log"
+                fig.update_xaxes(type=axis_type)
+                fig.update_yaxes(type=axis_type)
 
                 fig.update_layout(legend_title_text="Algorithm / Curve")  # legend title
                 st.plotly_chart(fig, use_container_width=True, key=f"{algo} ({mode})")
