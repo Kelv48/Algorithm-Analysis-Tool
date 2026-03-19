@@ -67,24 +67,24 @@ with tab1:
                 st.subheader("Sorting Configuration")
                 col1, col2 = st.columns(2)
                 with col1:
-                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
-                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 250, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 300, 400, 500], default=[100])
                 with col2:
                     modes = st.multiselect("Generation Modes", ["random", "sorted", "reverse", "all_same", "few_unique", "evolution"], default=["random"], key="sorting")
             elif group == "Searching":
                 st.subheader("Searching Configuration")
                 col1, col2 = st.columns(2)
                 with col1:
-                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
-                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 250, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 300, 400, 500], default=[100])
                 with col2:
                     modes = st.multiselect("Generation Modes", ["random", "evolution"], default=["random"], key="searching")
             elif group == "Scheduling":
                 st.subheader("Activity Configuration")
                 col1, col2 = st.columns(2)
                 with col1:
-                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 200, 500, 1000], default=[100])
-                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 500], default=[100])
+                    n_values = st.multiselect("Max Integer Values (n)", [50, 100, 250, 500, 1000], default=[100])
+                    arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 300, 400, 500], default=[100])
                 with col2:
                     modes = st.multiselect("Generation Modes", ["random", "all_overlap", "non_overlap", "sequential", "evolution"], default=["random"], key="activity")
         elif group in MATRIX_GROUPS:
@@ -722,7 +722,8 @@ with tab2:
             )
 
             fig.update_traces(marker=dict(size=14), textposition="top center")
-            fig.update_xaxes(range=[0, 3.5])
+            max_slope = complexity_df['slope_clamped'].max()
+            fig.update_xaxes(range=[0, max_slope + 1.5])
             fig.update_yaxes(
                 showticklabels=True,
                 tickvals=list(algo_to_y.values()),

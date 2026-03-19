@@ -726,27 +726,27 @@ def normalize_curve(curve, target_max):
 
 def classify_complexity(slope):
 
-    if slope < 0.25:
+    if slope < 0.0:
         return "O(1)"
-    elif slope < 0.75:
+    elif slope < 0.5:
         return "O(log n)"
-    elif slope < 1.1:
+    elif slope < 0.9:
         return "O(n)"
-    elif slope < 1.7:
+    elif slope < 1.2:
         return "O(n log n)"
-    elif slope < 2.5:
+    elif slope < 2.2:
         return "O(n²)"
     else:
         return "O(n³)"
 
 def build_complexity_bands(tolerance=0.25):
     COMPLEXITY_THEORY = [
-        ("O(1)", 0.25, "#2ecc71"),
-        ("O(log n)", 0.75, "#27ae60"),
-        ("O(n)", 1.1, "#f1c40f"),
-        ("O(n log n)", 1.7, "#e67e22"),
-        ("O(n²)", 2.5, "#e74c3c"),
-        ("O(n³)", 3.0, "#8e44ad"),
+        ("O(1)", 0.0, "#2ecc71"),
+        ("O(log n)", 0.5, "#27ae60"),
+        ("O(n)", 0.9, "#f1c40f"),
+        ("O(n log n)", 1.2, "#e67e22"),
+        ("O(n²)", 2.2, "#e74c3c"),
+        ("O(n³)", 3.5, "#8e44ad"),
     ]
 
     bands = []
