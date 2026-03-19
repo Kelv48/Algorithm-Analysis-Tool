@@ -1,6 +1,7 @@
 import ast, operator, string
 from random import randint, choice, sample, choices
 import pathlib, joblib, json, time, copy, math
+from sklearn.metrics import r2_score
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -738,5 +739,52 @@ def classify_complexity(slope):
     else:
         return "O(n³)"
 
+def build_complexity_bands(tolerance=0.25):
+    COMPLEXITY_THEORY = [
+        ("O(1)", 0.25, "#2ecc71"),
+        ("O(log n)", 0.75, "#27ae60"),
+        ("O(n)", 1.1, "#f1c40f"),
+        ("O(n log n)", 1.7, "#e67e22"),
+        ("O(n²)", 2.5, "#e74c3c"),
+        ("O(n³)", 3.0, "#8e44ad"),
+    ]
 
-# Allow input generation for matrix-based algorithms like Floyd-Warshall, Prim's, Kruskal's, etc. to be generated here as well
+    bands = []
+
+    for i, (name, val, color) in enumerate(COMPLEXITY_THEORY):
+        if i == 0:
+            lower = 0
+        else:
+            prev_val = COMPLEXITY_THEORY[i - 1][1]
+            lower = (prev_val + val) / 2
+
+        if i == len(COMPLEXITY_THEORY) - 1:
+            upper = val + tolerance
+        else:
+            next_val = COMPLEXITY_THEORY[i + 1][1]
+            upper = (val + next_val) / 2
+        bands.append((name, lower, upper, color))
+
+    return bands
+
+
+def compute_confidence(x, y, slope=None):
+    log_x = np.log(x)
+    log_y = np.log(y)
+
+    slope_fit, intercept = np.polyfit(log_x, log_y, 1)
+    y_pred = slope_fit * log_x + intercept
+
+    return r2_score(log_y, y_pred)
+
+def detect_outliers(x, y, slope=None, threshold=3.5):
+    log_x = np.log(x)
+    log_y = np.log(y)
+
+    slope_fit, intercept = np.polyfit(log_x, log_y, 1)
+    predicted = slope_fit * log_x + intercept
+
+    residuals = log_y - predicted
+    std = np.std(residuals)
+
+    return np.abs(residuals) > threshold * std
