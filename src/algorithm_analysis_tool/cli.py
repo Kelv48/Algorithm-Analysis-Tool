@@ -8,6 +8,9 @@ from random import randint, choice, sample
 import string
 from .execution_session import ExecutionSession
 
+from .config import ALGO_GROUPS
+
+ALL_ALGOS = set().union(*ALGO_GROUPS.values())
 DEFAULT_FILE_PATH = "src/algorithm_analysis_tool/algorithms.py"
 
 # ------------------ INPUT GENERATORS ------------------
@@ -97,19 +100,27 @@ def main():
         source = f.read()
 
     tree = ast.parse(source)
-    function_map = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    function_map = {node.name: node for node in tree.body 
+                    if isinstance(node, ast.FunctionDef) and node.name in ALL_ALGOS}
     if not function_map:
         print("No functions found. Exiting.")
         sys.exit(1)
 
     print("\nAvailable functions:")
-    for i, name in enumerate(function_map.keys(), 1):
-        print(f"{i}. {name}")
+    display_index = 1
+    index_to_name = {}
+    for group, names in ALGO_GROUPS.items():
+        print(f"\n{group}:")
+        for name in names:
+            if name in function_map:
+                print(f"  {display_index}. {name}")
+                index_to_name[display_index] = name
+                display_index += 1
 
     selected = input("\nEnter function numbers (comma-separated) or leave blank for all: ").strip()
     if selected:
-        indices = [int(x.strip())-1 for x in selected.split(",")]
-        func_names = [list(function_map.keys())[i] for i in indices if 0 <= i < len(function_map)]
+        indices = [int(x.strip()) for x in selected.split(",")]
+        func_names = [index_to_name[i] for i in indices if i in index_to_name]
     else:
         func_names = list(function_map.keys())
 
@@ -159,7 +170,9 @@ def main():
         })
 
         if export_json:
-            filename = f"{func_name}_history.json"
+            results_dir = Path("results")
+            results_dir.mkdir(parents=True, exist_ok=True)
+            filename = results_dir / f"{func_name}_history.json"
             with open(filename, "w") as f:
                 json.dump(history, f, indent=2)
             print(f"Step history exported to {filename}")

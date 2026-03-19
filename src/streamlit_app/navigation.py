@@ -22,7 +22,6 @@ def show_sidebar():
         "Dashboard": "app.py",
         "Single Execution": "pages/single_execution.py",
         "Multi Execution": "pages/multi_execution.py",
-        "Settings": "pages/test_page.py",
     }
 
     if st.session_state.get("page") != selected:

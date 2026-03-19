@@ -200,8 +200,3 @@ def matrix_add(A, B):
     m = min(len(A), len(B))
     n = min(len(A[0]), len(B[0]))
     return [[A[i][j] + B[i][j] for j in range(n)] for i in range(m)]
-
-# Add in matrix algorithms, tree algorithms, Floyd-Warshall, etc.
-# Add in some graph algorithms like Dijkstra's, Prim's, Kruskal's, etc. and also some dynamic programming algorithms like Knapsack, LCS, etc.
-# Also add in some more scheduling algorithms like job scheduling, etc.
-# And add in some more searching and sorting algorithms as well, maybe radix sort, counting sort, etc.
