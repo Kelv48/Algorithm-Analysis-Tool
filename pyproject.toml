@@ -20,7 +20,8 @@ dependencies = [
     "streamlit-option-menu",
     "matplotlib",
     "pytest",
-    "joblib"
+    "joblib",
+    "scikit-learn",
 ]
 
 [project.scripts]
