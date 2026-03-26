@@ -18,8 +18,9 @@ from helpers import (
     estimate_complexity_position, classify_complexity, build_complexity_bands, compute_confidence,
     detect_outliers)
 
-
+# -----------------------------
 # Paths
+# -----------------------------
 root = pathlib.Path.cwd()
 ast_visitor_path = root / "src" / "algorithm_analysis_tool"
 sys.path.insert(0, str(ast_visitor_path))
@@ -52,6 +53,9 @@ st.title("Multi Execution Dashboard")
 
 tab1, tab2 = st.tabs(["Experimental Modes", "Complexity Analysis"])
 
+# -----------------------------
+# Experimental Modes
+# -----------------------------
 with tab1:
     # Job Configuration
     with st.container(border=True):
@@ -60,8 +64,9 @@ with tab1:
         group = st.selectbox("Algorithm Group", list(ALGO_GROUPS.keys()))
         selected_functions = st.multiselect("Algorithms", ALGO_GROUPS[group])
 
-
+        # -----------------------------
         # Array-Based Config
+        # -----------------------------
         if group in ARRAY_GROUPS:
             if group == "Sorting":
                 st.subheader("Sorting Configuration")
@@ -87,6 +92,9 @@ with tab1:
                     arr_lengths = st.multiselect("Array Lengths", [50, 100, 200, 300, 400, 500], default=[100])
                 with col2:
                     modes = st.multiselect("Generation Modes", ["random", "all_overlap", "non_overlap", "sequential", "evolution"], default=["random"], key="activity")
+        # -----------------------------
+        # Matrix Config
+        # -----------------------------
         elif group in MATRIX_GROUPS:
             st.subheader("Matrix Configuration")
             col1, col2, col3, col4 = st.columns(4)
@@ -99,7 +107,9 @@ with tab1:
             with col4:
                 n_values = st.multiselect("Max Integer Value", [10, 50, 100, 200], default=[100])
             modes = st.multiselect("Generation Modes", ["random", "all_same", "identity_like", "zeros", "evolution"], default=["random"])
+        # -----------------------------
         # Graph Config
+        # -----------------------------
         else:
             st.subheader("Graph Configuration")
             col1, col2 = st.columns(2)
@@ -131,8 +141,9 @@ with tab1:
                 "auto_clear_finished": auto_clear_finished
             }
 
-
+        # -----------------------------
         # Build Job Queue
+        # -----------------------------
         if st.button("Add Jobs to Queue"):
             if not selected_functions:
                 st.warning("Select at least one algorithm.")
@@ -219,8 +230,9 @@ with tab1:
                 # Add all new jobs to queue
                 st.session_state.job_queue.extend(new_jobs)
                 st.success(f"Added {len(new_jobs)} jobs to the queue.")
-
+    # -----------------------------
     # Queue Display/Management
+    # -----------------------------
     st.header("Job Queue")
     if not st.session_state.job_queue:
         st.info("Queue is empty.")
@@ -321,8 +333,9 @@ with tab1:
 
     st.divider()
 
-
+    # -----------------------------
     # Update Job Statuses
+    # -----------------------------
     for job_id, job_data in st.session_state.jobs.items():
         if job_data["status"] == "running":
             future = job_data["future"]
@@ -374,8 +387,9 @@ with tab1:
 
         return pd.DataFrame()
 
-
+    # -----------------------------
     # Execution Dashboard
+    # -----------------------------
     st.header("Execution Dashboard")
 
     total_jobs = len(st.session_state.jobs)
@@ -515,7 +529,9 @@ with tab1:
         summary_df = results.groupby("algorithm")["total_operations"].mean().reset_index().rename(columns={"total_operations": "avg_operations"})
         st.dataframe(summary_df)
 
+    # -----------------------------
     # System Controls
+    # -----------------------------
     st.subheader("System Controls")
     col1, col2 = st.columns(2)
 
@@ -541,7 +557,9 @@ with tab1:
             st.session_state.job_counter = itertools.count(1)
             st.success("System reset.")
 
-
+# -----------------------------
+# Complexity Analysis
+# -----------------------------
 with tab2:
     def get_size_column(df):
         if "arr_length" in df.columns:

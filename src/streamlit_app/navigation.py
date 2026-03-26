@@ -6,9 +6,9 @@ def show_sidebar():
         selected = option_menu(
             menu_title="Navigation",
             menu_icon="cast",
-            options=["Dashboard", "Single Execution", "Multi Execution", "Settings"],
-            icons=['speedometer2', 'play-circle', "layers", 'gear'],
-            default_index=["Dashboard", "Single Execution", "Multi Execution", "Settings"].index(st.session_state.get("page", "Dashboard")),
+            options=["Dashboard", "Single Execution", "Multi Execution"],
+            icons=['speedometer2', 'play-circle', "layers"],
+            default_index=["Dashboard", "Single Execution", "Multi Execution"].index(st.session_state.get("page", "Dashboard")),
             orientation="vertical",
             styles={
                 "container": {
