@@ -92,7 +92,7 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
                 # Search algorithm: (arr, target)
                 final_args = [copy.deepcopy(input_arr[0]), input_arr[1]]
             elif input_arr is not None:
-                final_args = [copy.deepcopy(input_arr)]  
+                final_args = copy.deepcopy(input_arr) 
             else:
                 final_args = []
         else:
