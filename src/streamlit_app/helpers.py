@@ -53,8 +53,11 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     """
     if random_seed:
         apply_seed(random_seed)
+    max_history_tracking = kwargs.pop("max_history_tracking", 20)
     enable_history = kwargs.pop("enable_history", True)
-    session = ExecutionSession(enable_history=enable_history)
+    session = ExecutionSession(
+        enable_history=enable_history,
+        max_history_tracking=max_history_tracking)
 
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())
@@ -161,7 +164,7 @@ def extract_input_length(input_args):
 
 # Visualization helper functions 
 
-def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, max_animation_length=20, algorithm_name=""):
+def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, algorithm_name="", max_history_tracking=None):
     st.subheader(f"Algorithm Step-through Visualization for {algorithm_name}")
 
     if not history:
@@ -172,8 +175,8 @@ def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, ma
 
     if mode == "array":
         first_arrays = history[0].get(array_name) or []
-        if first_arrays and len(first_arrays[0]) > max_animation_length:
-            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for arrays larger than 20.")
+        if first_arrays and len(first_arrays[0]) > max_history_tracking:
+            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for arrays larger than {max_history_tracking}.")
             return
         array_placeholders = [st.empty() for _ in range(len(first_arrays))]
     else:
