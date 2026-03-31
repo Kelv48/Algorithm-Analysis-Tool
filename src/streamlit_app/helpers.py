@@ -25,7 +25,7 @@ def apply_seed(seed):
 
 # Ast Runner
 
-def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, random_seed=0, **kwargs):
+def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, random_seed=0, execution_mode="single", **kwargs):
     """
     Execute an algorithm with AST instrumentation using ExecutionSession,
     recording operation counts and maintaining a local history of operations
@@ -95,8 +95,10 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             if isinstance(input_arr, tuple):  
                 # Search algorithm: (arr, target)
                 final_args = [copy.deepcopy(input_arr[0]), input_arr[1]]
-            elif input_arr is not None:
-                final_args = copy.deepcopy(input_arr) 
+            elif input_arr is not None and execution_mode == "single":
+                final_args = copy.deepcopy(input_arr)
+            elif input_arr is not None and execution_mode == "multi":
+                final_args = [copy.deepcopy(input_arr)]
             else:
                 final_args = []
         else:

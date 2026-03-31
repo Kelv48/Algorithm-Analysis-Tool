@@ -286,7 +286,10 @@ with tab1:
                             input_generated=True,
                             input_mode=job["mode"],
                             job_id=job_id,
-                            random_seed=st.session_state.advanced_settings.get("random_seed", 0)
+                            random_seed=st.session_state.advanced_settings.get("random_seed", 0),
+                            execution_mode="multi",
+                            enable_history=False,
+                            max_history_tracking=0
                         )
                     elif job["type"] == "matrix":
                         A, B = job["matrices"]
@@ -297,7 +300,10 @@ with tab1:
                             input_generated=True,
                             input_mode="matrix",
                             job_id=job_id,
-                            random_seed=st.session_state.advanced_settings.get("random_seed", 0)
+                            random_seed=st.session_state.advanced_settings.get("random_seed", 0),
+                            execution_mode="multi",
+                            enable_history=False,
+                            max_history_tracking=0
                         )
 
                     else: 
@@ -312,7 +318,10 @@ with tab1:
                             input_generated=True,
                             input_mode="graph",
                             job_id=job_id,
-                            random_seed=st.session_state.advanced_settings.get("random_seed", 0)
+                            random_seed=st.session_state.advanced_settings.get("random_seed", 0),
+                            execution_mode="multi",
+                            enable_history=False,
+                            max_history_tracking=0
                         )
 
                     st.session_state.jobs[job_id] = {
