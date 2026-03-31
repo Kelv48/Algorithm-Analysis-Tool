@@ -25,7 +25,7 @@ def apply_seed(seed):
 
 # Ast Runner
 
-def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, random_seed=0, **kwargs):
+def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, input_mode=None, job_id=None, random_seed=0, execution_mode="single", **kwargs):
     """
     Execute an algorithm with AST instrumentation using ExecutionSession,
     recording operation counts and maintaining a local history of operations
@@ -53,7 +53,11 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     """
     if random_seed:
         apply_seed(random_seed)
-    session = ExecutionSession()
+    max_history_tracking = kwargs.pop("max_history_tracking", 20)
+    enable_history = kwargs.pop("enable_history", True)
+    session = ExecutionSession(
+        enable_history=enable_history,
+        max_history_tracking=max_history_tracking)
 
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())
@@ -91,8 +95,10 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
             if isinstance(input_arr, tuple):  
                 # Search algorithm: (arr, target)
                 final_args = [copy.deepcopy(input_arr[0]), input_arr[1]]
-            elif input_arr is not None:
-                final_args = [copy.deepcopy(input_arr)]  
+            elif input_arr is not None and execution_mode == "single":
+                final_args = copy.deepcopy(input_arr)
+            elif input_arr is not None and execution_mode == "multi":
+                final_args = [copy.deepcopy(input_arr)]
             else:
                 final_args = []
         else:
@@ -160,7 +166,7 @@ def extract_input_length(input_args):
 
 # Visualization helper functions 
 
-def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, max_animation_length=20, algorithm_name=""):
+def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, algorithm_name="", max_history_tracking=None):
     st.subheader(f"Algorithm Step-through Visualization for {algorithm_name}")
 
     if not history:
@@ -171,8 +177,8 @@ def visualize_algorithm(history, source_code, array_name="arrays", delay=0.5, ma
 
     if mode == "array":
         first_arrays = history[0].get(array_name) or []
-        if first_arrays and len(first_arrays[0]) > max_animation_length:
-            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for arrays larger than 20.")
+        if first_arrays and len(first_arrays[0]) > max_history_tracking:
+            st.warning(f"Array length is {len(first_arrays[0])}. Animation disabled for arrays larger than {max_history_tracking}.")
             return
         array_placeholders = [st.empty() for _ in range(len(first_arrays))]
     else:

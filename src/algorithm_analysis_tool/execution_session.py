@@ -3,11 +3,6 @@ import operator
 import copy
 
 
-MAX_ANIMATION_ARRAY_LENGTH = 20
-MAX_HISTORY_ARRAY_LENGTH = 50
-MAX_TRACKABLE_ARRAY_LENGTH = 50
-
-
 def not_in(a, b):
     return a not in b
 
@@ -26,10 +21,15 @@ def reset_counters():
 
 
 class ExecutionSession:
-    def __init__(self):
+    def __init__(self, enable_history=False, max_history_tracking=20, max_trackable_length=50):
+        self.enable_history = enable_history
+        self.max_animation_array_length = max_history_tracking
+        self.max_trackable_length = max_trackable_length
+
         self.counters = reset_counters()
         self.history = []
         self.final_state = None
+        self.large_array_warning_emitted = False
 
     def track_op(self, op_type, arrays=None, line_no=None, nodes=None, edges=None):
         """
@@ -37,15 +37,28 @@ class ExecutionSession:
         - For arrays: existing behavior.
         - For small graphs: store visited nodes/edges.
         """
+        if not self.enable_history:
+            return
+
         if arrays and len(arrays) > 0 and isinstance(arrays[0], list):
             main_array = arrays[0]
             length = len(main_array)
 
-            if length > MAX_TRACKABLE_ARRAY_LENGTH:
+            if length > self.max_animation_array_length:
                 self.final_state = main_array
+
+                if not self.large_array_warning_emitted:
+                    self.history.append({
+                        "line_no": line_no,
+                        "operation": "history_skipped_large_array",
+                        "reason": f"Array size {length} exceeds max_animation_array_length {self.max_animation_array_length}",
+                        "counters": self.counters.copy(),
+                        "arrays": None
+                    })
+                    self.large_array_warning_emitted = True
                 return
 
-            if length <= MAX_ANIMATION_ARRAY_LENGTH:
+            if length <= self.max_animation_array_length:
                 arrays_snapshot = [copy.deepcopy(a) for a in arrays]
                 self.history.append({
                     "line_no": line_no,
@@ -53,6 +66,7 @@ class ExecutionSession:
                     "counters": self.counters.copy(),
                     "arrays": arrays_snapshot
                 })
+
             return
 
         if nodes is not None and edges is not None:
