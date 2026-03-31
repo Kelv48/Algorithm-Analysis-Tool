@@ -3,11 +3,6 @@ import operator
 import copy
 
 
-MAX_ANIMATION_ARRAY_LENGTH = 20
-MAX_HISTORY_ARRAY_LENGTH = 50
-MAX_TRACKABLE_ARRAY_LENGTH = 50
-
-
 def not_in(a, b):
     return a not in b
 
@@ -26,7 +21,8 @@ def reset_counters():
 
 
 class ExecutionSession:
-    def __init__(self):
+    def __init__(self, enable_history=False):
+        self.enable_history = enable_history
         self.counters = reset_counters()
         self.history = []
         self.final_state = None
@@ -37,22 +33,17 @@ class ExecutionSession:
         - For arrays: existing behavior.
         - For small graphs: store visited nodes/edges.
         """
+        if not self.enable_history:
+            return
+
         if arrays and len(arrays) > 0 and isinstance(arrays[0], list):
-            main_array = arrays[0]
-            length = len(main_array)
-
-            if length > MAX_TRACKABLE_ARRAY_LENGTH:
-                self.final_state = main_array
-                return
-
-            if length <= MAX_ANIMATION_ARRAY_LENGTH:
-                arrays_snapshot = [copy.deepcopy(a) for a in arrays]
-                self.history.append({
-                    "line_no": line_no,
-                    "operation": op_type,
-                    "counters": self.counters.copy(),
-                    "arrays": arrays_snapshot
-                })
+            arrays_snapshot = [copy.deepcopy(a) for a in arrays]
+            self.history.append({
+                "line_no": line_no,
+                "operation": op_type,
+                "counters": self.counters.copy(),
+                "arrays": arrays_snapshot
+            })
             return
 
         if nodes is not None and edges is not None:

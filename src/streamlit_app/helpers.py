@@ -53,7 +53,8 @@ def run_ast_analysis(func_name, *args, input_arr=None, input_generated=False, in
     """
     if random_seed:
         apply_seed(random_seed)
-    session = ExecutionSession()
+    enable_history = kwargs.pop("enable_history", True)
+    session = ExecutionSession(enable_history=enable_history)
 
     with open(algo_path, "r") as f:
         tree = ast.parse(f.read())

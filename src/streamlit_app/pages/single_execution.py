@@ -314,8 +314,8 @@ with tab1:
                     help="Set a fixed seed for reproducibility."
                 )
 
-                disable_history = st.checkbox(
-                    "Disable history recording",
+                enable_history = st.checkbox(
+                    "Enable history recording",
                     value=False
                 )
 
@@ -350,7 +350,7 @@ with tab1:
                 "persist_input": persist_input,
                 "show_raw_ast": show_raw_ast,
                 "random_seed": random_seed,
-                "disable_history": disable_history
+                "enable_history": enable_history
             }
 
 
@@ -478,7 +478,8 @@ with tab1:
                     input_arr=st.session_state.generated_input if st.session_state.input_generated else None,
                     input_generated=st.session_state.input_generated,
                     input_mode = mode,
-                    random_seed = st.session_state.advanced_settings.get("random_seed", 0)
+                    random_seed = st.session_state.advanced_settings.get("random_seed", 0),
+                    enable_history=st.session_state.advanced_settings.get("enable_history", False)
                 )
 
                 st.session_state.future = future
@@ -515,7 +516,7 @@ with tab1:
                 nodes = g.get("nodes", [])
                 edges = g.get("edges", [])
                 saved_input = {"nodes": nodes, "edges": edges}
-            if not st.session_state.advanced_settings.get("disable_history", False):
+            if st.session_state.advanced_settings.get("enable_history", False):
                 save_recent_run(
                     payload["meta"]["algorithm"],
                     n if "n" in locals() else None,
