@@ -24,13 +24,13 @@ def assert_last_history(session, op_type, index=None, array_len=None, nodes_len=
         assert len(edges) == edges_len
 
 def test_simple_assignment():
-    session = ExecutionSession()
+    session = ExecutionSession(enable_history=True)
     counters, history = session.run("x = 5")
     assert counters["assignments"] == 1
     assert_last_history(session, "assignment", -1)
 
 def test_simple_arithmetic():
-    session = ExecutionSession()
+    session = ExecutionSession(enable_history=True)
     counters, history = session.run("x = 1 + 2")
     assert counters["arithmetic"] == 1
     assert counters["assignments"] == 1
